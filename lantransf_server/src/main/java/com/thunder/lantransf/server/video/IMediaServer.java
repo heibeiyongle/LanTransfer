@@ -1,10 +1,11 @@
 package com.thunder.lantransf.server.video;
 
 import android.content.Context;
+import android.view.Surface;
 
 import java.util.concurrent.ArrayBlockingQueue;
 
-public interface IMediaServer {
+interface IMediaServer {
 
     /**
      * 1. call transf to init
@@ -13,4 +14,5 @@ public interface IMediaServer {
      */
     void startPublish(Context context, ArrayBlockingQueue<Object> videoQue);
     void stopPublish();
+    Surface getCurrSUrface();
 }

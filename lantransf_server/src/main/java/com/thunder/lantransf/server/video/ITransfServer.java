@@ -7,7 +7,7 @@ import com.thunder.common.lib.dto.Beans;
 import java.io.OutputStream;
 import java.util.concurrent.ArrayBlockingQueue;
 
-public interface ITransfServer {
+interface ITransfServer {
 
 
     /**

@@ -6,7 +6,7 @@ import android.util.Log;
 import com.thunder.common.lib.dto.Beans;
 
 
-public class ServerManager implements IServerManager{
+class ServerManager implements IServerManager{
     private static final String TAG = "ServerManager";
     Context mCtx;
 
@@ -24,9 +24,12 @@ public class ServerManager implements IServerManager{
         mCtx = context;
     }
 
-    MediaServer mMediaServer = null;
-    ITransfServer mTransfServer = null;
+    private MediaServer mMediaServer = null;
+    private ITransfServer mTransfServer = null;
 
+    public MediaServer getCurrMediaServer(){
+        return mMediaServer;
+    }
 
     @Override
     public void startServer() {

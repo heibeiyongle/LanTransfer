@@ -2,7 +2,7 @@ package com.thunder.lantransf.server.video;
 
 import android.content.Context;
 
-public interface IServerManager {
+interface IServerManager {
 
     void init(Context context);
     void startServer();

@@ -20,7 +20,7 @@ import java.util.Objects;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
-public class TransferServer implements ITransfServer {
+class TransferServer implements ITransfServer {
 
     private static final String TAG = "TransferServer";
     private static final String NSD_CONTROL_SERVICE_NAME = "LSLanMediaServer";

@@ -5,6 +5,8 @@ import android.media.MediaFormat;
 import android.util.Log;
 import android.view.Surface;
 
+import com.thunder.common.lib.dto.Beans;
+
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -26,7 +28,7 @@ public class VideoDecoder {
     InputThread mDecodeThread;
     MediaCodec.BufferInfo mBufferInfo;
     //step1
-    String H264_FILE_PATH = "/sdcard/tmp/h264.data";
+    static String H264_FILE_PATH = "/sdcard/tmp/h264.data";
 
     private Surface mSurface;
 
@@ -53,6 +55,18 @@ public class VideoDecoder {
     public void startRead(String file) {
         H264_FILE_PATH = file;
         startDecode();
+    }
+
+
+    public void startRead(String file, ArrayBlockingQueue<Object> queue) {
+        H264_FILE_PATH = file;
+        try {
+            FileInputStream inputStream = new FileInputStream(file);
+            MyReadThread myReadThread = new MyReadThread(inputStream,queue,"");
+            myReadThread.start();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
 
@@ -96,7 +110,7 @@ public class VideoDecoder {
             try {
                 inputStream = new FileInputStream(file);
 
-                MyReadThread myReadThread = new MyReadThread(inputStream);
+                MyReadThread myReadThread = new MyReadThread(inputStream,frames);
                 myReadThread.start();
 
             } catch (Exception e) {
@@ -184,13 +198,20 @@ public class VideoDecoder {
     }
 
     ArrayBlockingQueue<byte[]> frames = new ArrayBlockingQueue(10);
-    byte[] frameFlag = {0, 0, 0, 1};
+    static byte[] frameFlag = {0, 0, 0, 1};
 
-    class MyReadThread extends Thread {
+    static class MyReadThread extends Thread {
         InputStream mIns = null;
-
-        MyReadThread(InputStream ins) {
+        ArrayBlockingQueue<byte[]> mInnerFrames;
+        ArrayBlockingQueue<Object> mInnerFramesObj;
+        MyReadThread(InputStream ins,ArrayBlockingQueue<byte[]> que) {
             mIns = ins;
+            mInnerFrames = que;
+        }
+
+        MyReadThread(InputStream ins,ArrayBlockingQueue<Object> que,String tag) {
+            mIns = ins;
+            mInnerFramesObj = que;
         }
 
         @Override
@@ -209,6 +230,10 @@ public class VideoDecoder {
                 int fps = 0;
 
                 byte[] readed = new byte[1024 * 4096];
+                boolean isFirstFrame = true;
+
+                int readFrameSize = 0;
+                Object lock= new Object();
                 while (true) {
                     long last = System.currentTimeMillis();
                     readSize = mIns.read(readed);
@@ -217,6 +242,7 @@ public class VideoDecoder {
                         mIns.close();
                         mIns = new FileInputStream(new File(H264_FILE_PATH));
                         mIns.read(headFlag);
+                        isFirstFrame = true;
                         Log.i(TAG," run =================== END FILE, CONTINUE ");
                         continue;
                     }
@@ -243,7 +269,20 @@ public class VideoDecoder {
                             byteBuffer.flip();
                             System.arraycopy(frameFlag, 0, rs, 0, frameFlag.length);
                             byteBuffer.get(rs,4,rs.length - frameFlag.length);
-                            frames.put(rs);
+                            if(mInnerFrames != null){
+                                mInnerFrames.put(rs);
+                            }
+                            if(mInnerFramesObj != null){
+                                Beans.VideoData tmpDataObj = new Beans.VideoData(isFirstFrame,false,1024,768, rs);
+                                mInnerFramesObj.put(tmpDataObj);
+//                                Log.i(TAG, "run: read file frame ---- size: "+ readFrameSize++);
+                                isFirstFrame = false;
+                                synchronized (lock){
+                                    lock.wait(30);
+                                }
+
+                            }
+
                             byteBuffer.clear();
                             dataBeginIndex = index;
 
@@ -254,7 +293,12 @@ public class VideoDecoder {
                             if (tmpS == lastS) {
                                 fps++;
                             } else {
-                                Log.i(TAG, "===== read File ================ FPS:" + fps + ", queSize:"+frames.size());
+                                if(mInnerFramesObj != null){
+                                    Log.i(TAG, "===== read File ================ FPS:" + fps + ", queSize:"+mInnerFramesObj.size());
+                                }
+                                if(mInnerFrames != null) {
+                                    Log.i(TAG, "===== read File ================ FPS:" + fps + ", queSize:" + mInnerFrames.size());
+                                }
                                 fps = 0;
                                 lastS = tmpS;
                             }

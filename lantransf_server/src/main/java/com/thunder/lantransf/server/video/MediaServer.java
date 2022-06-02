@@ -16,11 +16,12 @@ import androidx.annotation.RequiresApi;
 import com.thunder.common.lib.dto.Beans;
 import com.thunder.common.lib.util.VideoDecoder;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.concurrent.ArrayBlockingQueue;
 
-public class MediaServer implements IMediaServer{
+class MediaServer implements IMediaServer{
     private static final String TAG = "MediaServer";
     /**
      * 1. call transf to init
@@ -38,8 +39,12 @@ public class MediaServer implements IMediaServer{
             return;
         }
         this.videoQue = videoQue;
-        mEncodeT = new EncodeThread();
-        mEncodeT.start();
+        initEncoder();
+//        mEncodeT = new EncodeThread();
+//        mEncodeT.start();
+        // debug code 没有播放器sdk 的数据源，mock it !
+        VideoDecoder videoDecoder = new VideoDecoder();
+        videoDecoder.startRead("/data/local/tmp/big_buck_bunny.h264",videoQue);
     }
 
     @Override
@@ -53,7 +58,36 @@ public class MediaServer implements IMediaServer{
         mEncodeT = null;
     }
 
+    @Override
+    public Surface getCurrSUrface() {
+        return surface;
+    }
+
     EncodeThread mEncodeT = null;
+    MediaCodec encoder = null;
+    Surface surface = null;
+
+    private void initEncoder(){
+        int videoW,videoH;
+        try {
+            encoder = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_VIDEO_AVC);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        videoW = 1920;
+        videoH = 1080;
+        MediaFormat format = MediaFormat.createVideoFormat(
+                MediaFormat.MIMETYPE_VIDEO_AVC, videoW, videoH);
+        format.setInteger(MediaFormat.KEY_FRAME_RATE, 30);
+        format.setInteger(MediaFormat.KEY_BIT_RATE, 1000*8*1024);
+//                format.setInteger(MediaFormat.KEY_BITRATE_MODE, MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_VBR);
+//                format.setInteger(MediaFormat.KEY_BITRATE_MODE, MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_CQ); // 3568 crash
+        format.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
+        format.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1); //关键帧间隔时间 单位s
+        encoder.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
+        surface = encoder.createInputSurface();
+
+    }
 
 
     ArrayBlockingQueue<Object> videoQue = null;
@@ -74,23 +108,23 @@ public class MediaServer implements IMediaServer{
             super.run();
             Log.d(TAG, "run() called");
             try {
-                MediaCodec encoder = null;
-                encoder = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_VIDEO_AVC);
-                videoW = 1920;
-                videoH = 1080;
-                MediaFormat format = MediaFormat.createVideoFormat(
-                        MediaFormat.MIMETYPE_VIDEO_AVC, videoW, videoH);
-                format.setInteger(MediaFormat.KEY_FRAME_RATE, 30);
-
-                format.setInteger(MediaFormat.KEY_BIT_RATE, 1000*8*1024);
-//                format.setInteger(MediaFormat.KEY_BITRATE_MODE, MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_VBR);
-
-//                format.setInteger(MediaFormat.KEY_BITRATE_MODE, MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_CQ); // 3568 crash
-                format.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
-                format.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1); //关键帧间隔时间 单位s
-                encoder.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
-
-                Surface surface = encoder.createInputSurface();
+//                MediaCodec encoder = null;
+//                encoder = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_VIDEO_AVC);
+//                videoW = 1920;
+//                videoH = 1080;
+//                MediaFormat format = MediaFormat.createVideoFormat(
+//                        MediaFormat.MIMETYPE_VIDEO_AVC, videoW, videoH);
+//                format.setInteger(MediaFormat.KEY_FRAME_RATE, 30);
+//
+//                format.setInteger(MediaFormat.KEY_BIT_RATE, 1000*8*1024);
+////                format.setInteger(MediaFormat.KEY_BITRATE_MODE, MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_VBR);
+//
+////                format.setInteger(MediaFormat.KEY_BITRATE_MODE, MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_CQ); // 3568 crash
+//                format.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
+//                format.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1); //关键帧间隔时间 单位s
+//                encoder.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
+//
+//                Surface surface = encoder.createInputSurface();
                 encoder.start();
                 setInputSurface(surface);
 //                File saveFile = new File(DirConstants.DATA_CACHE+"/tmp.h264");
@@ -147,7 +181,6 @@ public class MediaServer implements IMediaServer{
 
     private void setInputSurface(Surface sink){
         Log.i(TAG, "onGotSurface: surface: "+sink);
-//        ServiceManager.getSongOrderService().setSecondSurface(surface);
         VideoDecoder videoDecoder = new VideoDecoder();
         videoDecoder.setSurface(sink);
         videoDecoder.startRead("/data/local/tmp/big_buck_bunny.h264");

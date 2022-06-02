@@ -5,13 +5,14 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import android.os.Bundle;
 import android.util.Log;
+import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.View;
 
 import com.thunder.lantransf.client.video.IMediaClient;
 import com.thunder.lantransf.client.video.MediaClient;
-import com.thunder.lantransf.server.video.ServerManager;
+import com.thunder.lantransf.server.video.ServerApi;
 
 
 public class MainActivity extends AppCompatActivity {
@@ -51,12 +52,13 @@ public class MainActivity extends AppCompatActivity {
 
 
     private void startServer(){
-        ServerManager.getInstance().init(this);
-        ServerManager.getInstance().startServer();
+        ServerApi.getInstance().init(this);
+        ServerApi.getInstance().startServer();
     }
 
     private void startPublish(){
-        ServerManager.getInstance().startPublishMedia();
+        Surface sinkSurface = ServerApi.getInstance().startPublishMedia();
+
     }
 
 

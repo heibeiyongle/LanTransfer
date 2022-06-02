@@ -114,7 +114,7 @@ public class MediaClient implements IMediaClient{
 
         @Override
         public void onGotVideoData(Beans.VideoData data) {
-            Log.d(TAG, "onGotVideoData() called with: data = [" + data + "]");
+//            Log.d(TAG, "onGotVideoData() called with: data = [" + data + "]");
             try {
                 if(mSurface != null){
                     mVideoQue.offer(data,10, TimeUnit.MILLISECONDS);
