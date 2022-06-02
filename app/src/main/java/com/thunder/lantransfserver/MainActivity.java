@@ -9,9 +9,10 @@ import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.View;
 
-import com.thunder.lantransfserver.client.video.IMediaClient;
-import com.thunder.lantransfserver.client.video.MediaClient;
-import com.thunder.lantransfserver.server.video.ServerManager;
+import com.thunder.lantransf.client.video.IMediaClient;
+import com.thunder.lantransf.client.video.MediaClient;
+import com.thunder.lantransf.server.video.ServerManager;
+
 
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = "MainActivity";

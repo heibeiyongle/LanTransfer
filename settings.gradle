@@ -14,3 +14,6 @@ dependencyResolutionManagement {
 }
 rootProject.name = "LanTransfServer"
 include ':app'
+include ':lantransf_client'
+include ':lantransf_server'
+include ':common_lib'
