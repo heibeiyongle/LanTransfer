@@ -128,7 +128,7 @@ public class TransfClient implements ITransferClient{
 
     NsdServiceInfo targetServiceInfo = null;
     public void initializeDiscoveryListener() {
-
+        Log.d(TAG, "initializeDiscoveryListener() called");
         NsdManager.DiscoveryListener discoveryListener = new NsdManager.DiscoveryListener() {
 
             @Override

@@ -9,6 +9,8 @@ import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.View;
+import android.widget.Button;
+import android.widget.Toast;
 
 import com.thunder.lantransf.client.video.IMediaClient;
 import com.thunder.lantransf.client.video.MediaClient;
@@ -23,6 +25,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         mSvClient = findViewById(R.id.sv_client);
+        findViewById(R.id.v_close).setOnClickListener(clk);
         findViewById(R.id.tv_start_server).setOnClickListener(clk);
         findViewById(R.id.tv_start_publish_video).setOnClickListener(clk);
         findViewById(R.id.tv_start_client).setOnClickListener(clk);
@@ -33,6 +36,7 @@ public class MainActivity extends AppCompatActivity {
     View.OnClickListener clk = new View.OnClickListener() {
         @Override
         public void onClick(View view) {
+//            Toast.makeText(this,(""+((Button)view).getText()+", clicked"),Toast.LENGTH_LONG).show();
             switch (view.getId()){
                 case R.id.tv_start_server:{
                     startServer();
@@ -44,6 +48,11 @@ public class MainActivity extends AppCompatActivity {
                 }
                 case R.id.tv_start_client:{
                     startClient();
+                    break;
+                }
+                case R.id.v_close:{
+                    finish();
+                    System.exit(0);
                     break;
                 }
             }
@@ -58,7 +67,6 @@ public class MainActivity extends AppCompatActivity {
 
     private void startPublish(){
         Surface sinkSurface = ServerApi.getInstance().startPublishMedia();
-
     }
 
 
@@ -89,7 +97,7 @@ public class MainActivity extends AppCompatActivity {
         });
     }
     private void startClient(){
-
+        initClient();
     }
 
     IMediaClient.IStateChangeCallBack changeCallBack = new IMediaClient.IStateChangeCallBack() {

@@ -13,7 +13,14 @@
         android:orientation="vertical"
         android:padding="10dp">
 
-        <TextView
+        <Button
+            android:id="@+id/v_close"
+            android:text="X"
+            android:padding="10dp"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"/>
+
+        <Button
             android:id="@+id/tv_start_server"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -23,7 +30,7 @@
             android:text="Start-server"
             android:textColor="@color/white" />
 
-        <TextView
+        <Button
             android:id="@+id/tv_start_publish_video"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -45,11 +52,11 @@
     <LinearLayout
         android:layout_width="0dp"
         android:layout_height="match_parent"
-        android:layout_weight="1"
+        android:layout_weight="3"
         android:orientation="vertical"
         android:padding="10dp">
 
-        <TextView
+        <Button
             android:id="@+id/tv_start_client"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
