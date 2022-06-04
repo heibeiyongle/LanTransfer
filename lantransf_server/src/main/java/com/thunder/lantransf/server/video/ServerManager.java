@@ -5,6 +5,9 @@ import android.util.Log;
 
 import com.thunder.common.lib.dto.Beans;
 
+import java.util.ArrayList;
+import java.util.List;
+
 
 class ServerManager implements IServerManager{
     private static final String TAG = "ServerManager";
@@ -31,6 +34,79 @@ class ServerManager implements IServerManager{
         return mMediaServer;
     }
 
+    ITransfServer.ITransfServerStateCallBack mTransfServerCB = new ITransfServer.ITransfServerStateCallBack() {
+        @Override
+        public void onSocketServerReady() {
+            if(mServerStateCB != null){
+                mServerStateCB.onSocketServerStarted();
+            }
+        }
+
+        @Override
+        public void onServicePublished() {
+            if(mServerStateCB != null){
+                mServerStateCB.onServicePublished();
+            }
+        }
+
+        @Override
+        public void onSocketServerStopped() {
+
+        }
+
+        @Override
+        public void onServiceCanceled() {
+            if(mServerStateCB != null){
+                mServerStateCB.onServicePublishCanceled();
+            }
+        }
+
+        @Override
+        public void onGotClient(TransferServer.ClientSession clientSession) {
+            if(mServerStateCB != null){{
+                mServerStateCB.onGotClient(clientSession);
+            }}
+        }
+
+        @Override
+        public void onLoseClient(TransferServer.ClientSession clientSession) {
+            if(mServerStateCB != null){
+                mServerStateCB.onLoseClient(clientSession);
+            }
+        }
+    };
+
+    IMediaServer.IStateCallBack mInnerMediaServerCb = new IMediaServer.IStateCallBack() {
+        @Override
+        public void onGenerateFirstFrame() {
+            if(mMediaStateNotify != null){
+                mMediaStateNotify.onFirstVFrameGenerated();
+            }
+        }
+
+        @Override
+        public void onPublishFirstFrame() {
+            if(mMediaStateNotify != null){
+                mMediaStateNotify.onFirstVFramePublished();
+            }
+        }
+
+        @Override
+        public void onServerReady() {
+            if(mMediaStateNotify != null){
+                mMediaStateNotify.onServerReady();
+            }
+        }
+
+        @Override
+        public void onServerStopped() {
+            if(mMediaStateNotify != null){
+                mMediaStateNotify.onServerStopped();
+            }
+        }
+    };
+
+
     @Override
     public void startServer() {
         if(mTransfServer != null){
@@ -41,6 +117,7 @@ class ServerManager implements IServerManager{
             return;
         }
         mTransfServer = new TransferServer();
+        mTransfServer.setStateCallBack(mTransfServerCB);
         mTransfServer.startTransfServer(mCtx);
         mTransfServer.startPublishMsg();
         initClientMsgDealer();
@@ -60,6 +137,7 @@ class ServerManager implements IServerManager{
             return;
         }
         mMediaServer = new MediaServer();
+        mMediaServer.setStateCallBack(mInnerMediaServerCb);
         mMediaServer.startPublish(mCtx,mTransfServer.getOutputQue());
     }
 
@@ -69,6 +147,19 @@ class ServerManager implements IServerManager{
             return;
         }
         mMediaServer.stopPublish();
+    }
+
+    @Override
+    public List<String> getClientList() {
+        List<String> res = new ArrayList<>();
+        if(mTransfServer == null){
+            return res;
+        }
+        List<String> tmpList = mTransfServer.getClientList();
+        if(tmpList != null){
+            res =tmpList;
+        }
+        return res;
     }
 
     @Override
@@ -83,6 +174,19 @@ class ServerManager implements IServerManager{
         Beans.CommandMsg.ResAccState accState = new Beans.CommandMsg.ResAccState();
         accState.accType = acc;
         mMsgDealer.sendCmd(genPublishMsg(accState));
+    }
+
+
+    IServerStateCallBack mServerStateCB = null;
+    @Override
+    public void setServerStateCB(IServerStateCallBack cb) {
+        mServerStateCB = cb;
+    }
+
+    IMediaServerStateCallBack mMediaStateNotify = null;
+    @Override
+    public void setMediaServerStateCB(IMediaServerStateCallBack cb) {
+        mMediaStateNotify = cb;
     }
 
     MsgDealer mMsgDealer = new MsgDealer();

@@ -16,6 +16,21 @@ public interface IServerApi {
     void setStateChangeCallBack( IServerStateChangeCallBack cb);
 
     interface IServerStateChangeCallBack{
+
+        enum ServerState{
+            NONE,
+            STARTED,
+            STOPED
+        }
+
+        enum ServerMediaState{
+            NONE,
+            STARTED,
+            FIRST_FRAME_GENERATED,
+            FIRST_FRAME_PUBLISHED,
+            STOPPED
+        }
+
         void onServerStateChanged(int state); // none started stoped
         void onMediaPublishStateChanged(int state); // none started stop
         void onGotClient(String clientName); //clientName server generate

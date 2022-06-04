@@ -15,6 +15,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -54,6 +55,17 @@ class TransferServer implements ITransfServer {
 
         @Override
         public String toString() {
+            return "ClientSession{" +
+                    "clientId=" + clientId +
+                    ", ip='" + ip + '\'' +
+                    ", connectTimeMs=" + connectTimeMs +
+                    ", isActive=" + isActive +
+                    ", isSendCfg=" + isSendCfg +
+                    ", mOus=" + mOus +
+                    '}';
+        }
+
+        public String toSampleString(){
             return "ClientSession{" +
                     "clientId=" + clientId +
                     ", ip='" + ip + '\'' +
@@ -107,6 +119,24 @@ class TransferServer implements ITransfServer {
     @Override
     public void setMsgDealer(IClientMsgDealer dealer) {
         mClientMsgDealer = dealer;
+    }
+
+    ITransfServerStateCallBack mStateCb;
+    @Override
+    public void setStateCallBack(ITransfServerStateCallBack cb) {
+        mStateCb = cb;
+    }
+
+    @Override
+    public List<String> getClientList() {
+        if(mOusClients == null || mOusClients.size() == 0){
+            return new ArrayList<>();
+        }
+        ArrayList<String> res = new ArrayList();
+        for (ClientSession tmp:mOusClients) {
+            res.add(tmp.toSampleString());
+        }
+        return res;
     }
 
     private Beans.VideoData mVideoConfigData = null;
@@ -187,9 +217,9 @@ class TransferServer implements ITransfServer {
         }
     }
 
-    private int mClientId = 1; // client index start
+    private int mClientIdSeed = 1; // client index start
     private int genClientID(){
-        return ++mClientId;
+        return ++mClientIdSeed;
     }
 
     SocketDealer.ISocDealCallBack clientSocDataHandler = new SocketDealer.ISocDealCallBack() {
@@ -204,6 +234,9 @@ class TransferServer implements ITransfServer {
             session.ip = remoteHost;
             Log.i(TAG, "onGotClient: "+session);
             mOusClients.add(session);
+            if(mStateCb != null){
+                mStateCb.onGotClient(session);
+            }
         }
 
         @Override
@@ -211,6 +244,9 @@ class TransferServer implements ITransfServer {
             ClientSession session = findClient(ous);
             Log.i(TAG, "onSocClosed: session: "+ session);
             mOusClients.remove(session);
+            if(mStateCb != null){
+                mStateCb.onLoseClient(session);
+            }
         }
 
         @Override
@@ -269,6 +305,9 @@ class TransferServer implements ITransfServer {
         @Override
         public void onServerBindSuc(int port) {
             Log.i(TAG,"onServerBindSuc port:"+port);
+            if(mStateCb != null){
+                mStateCb.onSocketServerReady();
+            }
             regNsdServer(port,mRegL);
         }
     };
@@ -332,11 +371,17 @@ class TransferServer implements ITransfServer {
         @Override
         public void onServiceRegistered(NsdServiceInfo serviceInfo) {
             Log.d(TAG, "onServiceRegistered() called with: serviceInfo = [" + serviceInfo + "]");
+            if(mStateCb != null){
+                mStateCb.onServicePublished();
+            }
         }
 
         @Override
         public void onServiceUnregistered(NsdServiceInfo serviceInfo) {
             Log.d(TAG, "onServiceUnregistered() called with: serviceInfo = [" + serviceInfo + "]");
+            if(mStateCb != null){
+                mStateCb.onServiceCanceled();
+            }
         }
     };
 

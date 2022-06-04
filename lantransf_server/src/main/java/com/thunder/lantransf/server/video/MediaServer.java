@@ -43,6 +43,10 @@ class MediaServer implements IMediaServer{
 //        mEncodeT = new EncodeThread();
 //        mEncodeT.start();
         // debug code 没有播放器sdk 的数据源，mock it !
+        if(mNotify != null){
+            mNotify.onServerReady();
+        }
+
         VideoDecoder videoDecoder = new VideoDecoder();
         videoDecoder.startRead("/data/local/tmp/big_buck_bunny.h264",videoQue);
     }
@@ -61,6 +65,12 @@ class MediaServer implements IMediaServer{
     @Override
     public Surface getCurrSUrface() {
         return surface;
+    }
+
+    IStateCallBack mNotify;
+    @Override
+    public void setStateCallBack(IStateCallBack cb) {
+        mNotify = cb;
     }
 
     EncodeThread mEncodeT = null;
@@ -134,6 +144,8 @@ class MediaServer implements IMediaServer{
 //                }
 //                saveFile.createNewFile();
 
+                boolean isFirstFrame = true;
+
                 byte[] tmp = new byte[1048576];
                 while (!exit){
                     int outBufIndex = encoder.dequeueOutputBuffer(mBufInfo,1000*1000*2);
@@ -148,6 +160,10 @@ class MediaServer implements IMediaServer{
                         continue;
                     }
                     Log.i(TAG, "run: outBufIndex: "+outBufIndex);
+                    if(isFirstFrame && mNotify != null){
+                        mNotify.onGenerateFirstFrame();
+                        isFirstFrame = false;
+                    }
 
                     ByteBuffer bf = encoder.getOutputBuffer(outBufIndex);
                     int dataSize = bf.remaining();
@@ -167,6 +183,9 @@ class MediaServer implements IMediaServer{
                     }
                     videoQue.offer(tmpDataObj);
                     encoder.releaseOutputBuffer(outBufIndex,true);
+                }
+                if(mNotify != null){
+                    mNotify.onServerStopped();
                 }
 
             } catch (Exception e) {

@@ -15,4 +15,14 @@ interface IMediaServer {
     void startPublish(Context context, ArrayBlockingQueue<Object> videoQue);
     void stopPublish();
     Surface getCurrSUrface();
+
+    void setStateCallBack(IStateCallBack cb);
+
+    interface IStateCallBack{
+        void onGenerateFirstFrame();
+        void onPublishFirstFrame();
+        void onServerReady();
+        void onServerStopped();
+    }
+
 }
