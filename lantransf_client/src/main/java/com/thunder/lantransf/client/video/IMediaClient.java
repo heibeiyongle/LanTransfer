@@ -20,6 +20,10 @@ public interface IMediaClient {
     void setStateChangeCallBack(IStateChangeCallBack cb);
 
     interface IStateChangeCallBack{
+        void onStartServiceListener();
+        void onFindServer();
+        void onServerConnected();
+        void onServerDisConnected();
         void onVideoStart();
         void onVideoStop();
         void onPlayStateChanged(boolean play);

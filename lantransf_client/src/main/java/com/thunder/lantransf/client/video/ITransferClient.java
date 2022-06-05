@@ -21,12 +21,20 @@ public interface ITransferClient {
     void getPlayState();
     void getAccState();
 
-    void setClientHandler(IClientHandler cb);
+    void setClientDataHandler(IClientDataHandler cb);
+    void setClientStateHandler(IClientStateHandler cb);
 
-    interface IClientHandler{
-        void onConnect();
-        void onDisconnect();
+    interface IClientDataHandler{
         void onGotVideoData(Beans.VideoData data);
         void onGotCmdData(Beans.CommandMsg data);
     }
+
+    interface IClientStateHandler{
+        void onRegFindService();
+        void onFindServerService();
+        void onGotServerInfo();
+        void onConnect();
+        void onDisconnect();
+    }
+
 }

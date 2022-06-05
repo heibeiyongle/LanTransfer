@@ -22,11 +22,16 @@ import java.util.concurrent.TimeUnit;
  *
  * @desc:
  */
-public class MediaClient implements IMediaClient{
+class MediaClient implements IMediaClient{
 
     private static final String TAG = "MediaClient";
 
     private MediaClient(){}
+
+//    public MediaClient(String tag){
+//        Log.i(TAG,"MediaClient tag:"+tag);
+//    }
+
     static class Holder{
         static MediaClient instance = new MediaClient();
     }
@@ -34,7 +39,6 @@ public class MediaClient implements IMediaClient{
         return Holder.instance;
     }
 
-    
     ITransferClient mTransfClient = null;
     Context mCtx;
     Surface mSurface;
@@ -42,13 +46,14 @@ public class MediaClient implements IMediaClient{
     DecodeThread mDecThread ;
 
     ArrayBlockingQueue<Beans.VideoData> mVideoQue = new ArrayBlockingQueue<>(100);
-    IStateChangeCallBack mStateChangedCb;
+    IStateChangeCallBack mNotify;
     @Override
     public void init(Context context) {
         mCtx = context;
         mTransfClient = new TransfClient();
         mTransfClient.init(context);
-        mTransfClient.setClientHandler(mRecDataHandler);
+        mTransfClient.setClientDataHandler(mRecDataHandler);
+        mTransfClient.setClientStateHandler(mInnerStateHandler);
     }
 
     @Override
@@ -96,22 +101,10 @@ public class MediaClient implements IMediaClient{
 
     @Override
     public void setStateChangeCallBack(IStateChangeCallBack cb) {
-        mStateChangedCb = cb;
+        mNotify = cb;
     }
 
-    ITransferClient.IClientHandler mRecDataHandler = new ITransferClient.IClientHandler() {
-        @Override
-        public void onConnect() {
-            mVideoQue.clear();
-            //sync time , start msg
-            mTransfClient.syncNetTime();
-        }
-
-        @Override
-        public void onDisconnect() {
-            mVideoQue.clear();
-        }
-
+    ITransferClient.IClientDataHandler mRecDataHandler = new ITransferClient.IClientDataHandler() {
         @Override
         public void onGotVideoData(Beans.VideoData data) {
 //            Log.d(TAG, "onGotVideoData() called with: data = [" + data + "]");
@@ -132,6 +125,47 @@ public class MediaClient implements IMediaClient{
     };
 
 
+    ITransferClient.IClientStateHandler mInnerStateHandler = new ITransferClient.IClientStateHandler() {
+        @Override
+        public void onRegFindService() {
+            if(mNotify != null){
+                mNotify.onStartServiceListener();
+            }
+        }
+
+        @Override
+        public void onFindServerService() {
+            if(mNotify != null){
+                mNotify.onFindServer();
+            }
+        }
+
+        @Override
+        public void onGotServerInfo() {
+
+        }
+
+        @Override
+        public void onConnect() {
+            if(mNotify != null){
+                mNotify.onServerConnected();
+            }
+            mVideoQue.clear();
+            //sync time , start msg
+            mTransfClient.syncNetTime();
+        }
+
+        @Override
+        public void onDisconnect() {
+            if(mNotify != null){
+                mNotify.onServerDisConnected();
+            }
+            mVideoQue.clear();
+        }
+    };
+
+
+
     private void dealCmdMsg(Beans.CommandMsg msg){
         Log.i(TAG, "dealCmdMsg: msg: "+msg);
         /*
@@ -150,14 +184,14 @@ public class MediaClient implements IMediaClient{
         }else if(Beans.CommandMsg.ResAccState.class.getSimpleName().equals(msg.getType())){
             Beans.CommandMsg.ResAccState tmpMsg = GsonUtils.parseFromLinkedTreeMap(
                     (LinkedTreeMap) msg.getBody(), Beans.CommandMsg.ResAccState.class);
-            if(mStateChangedCb != null && tmpMsg != null){
-                mStateChangedCb.onAccStateChanged(tmpMsg.accType);
+            if(mNotify != null && tmpMsg != null){
+                mNotify.onAccStateChanged(tmpMsg.accType);
             }
         }else if(Beans.CommandMsg.ResPlayState.class.getSimpleName().equals(msg.getType())){
             Beans.CommandMsg.ResPlayState tmpMsg = GsonUtils.parseFromLinkedTreeMap(
                     (LinkedTreeMap) msg.getBody(), Beans.CommandMsg.ResPlayState.class);
-            if(mStateChangedCb != null && tmpMsg != null){
-                mStateChangedCb.onPlayStateChanged(tmpMsg.playing);
+            if(mNotify != null && tmpMsg != null){
+                mNotify.onPlayStateChanged(tmpMsg.playing);
             }
         }
 
@@ -177,12 +211,7 @@ public class MediaClient implements IMediaClient{
 
         mNetTimeInfo = new NetTimeInfo();
         mNetTimeInfo.setNetTimeMs(currNetTime);
-
-
         mNetTimeInfo.setTransfCostTime(transfCostTime);
-
-
-
     }
 
 
@@ -302,6 +331,9 @@ public class MediaClient implements IMediaClient{
                         if(!ifFirstFrameOuted){
                             Log.i(TAG," <---- OUTPUT FIRST FRAME!");
                             ifFirstFrameOuted = true;
+                            if(mNotify != null){
+                                mNotify.onVideoStart();
+                            }
                         }
                         codec.releaseOutputBuffer(outIndex, true);
                         outIndex = codec.dequeueOutputBuffer(mBufferInfo, DEF_DECODE_TIMEOUT);
@@ -316,6 +348,9 @@ public class MediaClient implements IMediaClient{
                     }
 
 //                LogUtil.i(TAG, "loop_end ...");
+                }
+                if(mNotify != null){
+                    mNotify.onVideoStop();
                 }
                 isRunning = false;
             } catch (Exception e) {

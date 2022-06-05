@@ -30,7 +30,8 @@ public class TransfClient implements ITransferClient{
 
     Context mCtx;
     NsdManager mNsdManager;
-    IClientHandler mClientCallBack;
+    IClientDataHandler mClientDataHandler;
+    IClientStateHandler mClientStateHandler;
 
     /**
      * 1. search nsd
@@ -121,8 +122,13 @@ public class TransfClient implements ITransferClient{
         addCmdToQue(act,0);    }
 
     @Override
-    public void setClientHandler(IClientHandler cb) {
-        mClientCallBack = cb;
+    public void setClientDataHandler(IClientDataHandler cb) {
+        mClientDataHandler = cb;
+    }
+
+    @Override
+    public void setClientStateHandler(IClientStateHandler cb) {
+        mClientStateHandler = cb;
     }
 
 
@@ -134,6 +140,7 @@ public class TransfClient implements ITransferClient{
             @Override
             public void onDiscoveryStarted(String regType) {
                 Log.i(TAG, "Service discovery started");
+                mClientStateHandler.onRegFindService();
             }
 
             @Override
@@ -145,6 +152,7 @@ public class TransfClient implements ITransferClient{
                     Log.i(TAG, "Unknown Service Type: " + service.getServiceType());
                 } else if (service.getServiceName().equals(NSD_CONTROL_SERVICE_NAME)) {
                     if(targetServiceInfo == null){
+                        mClientStateHandler.onFindServerService();
                         targetServiceInfo = service;
                         mNsdManager.resolveService(service, mResolveL);
                     }
@@ -192,6 +200,7 @@ public class TransfClient implements ITransferClient{
             String host = serviceInfo.getHost().getHostAddress();
             int port =serviceInfo.getPort();
             mServerHost = host;
+            mClientStateHandler.onGotServerInfo();
             innerConnectSocket(host,port);
         }
     };
@@ -210,7 +219,6 @@ public class TransfClient implements ITransferClient{
                     mClient = new SocketDealer();
                     mClient.init(soc,mSocDealCb);
                     mClient.begin();
-
                     if(mMsgSenderT == null){
                         mMsgSenderQue.clear();
                         mMsgSenderT = new MsgSenderThread();
@@ -229,26 +237,26 @@ public class TransfClient implements ITransferClient{
         @Override
         public void onGotOus(OutputStream ous, String remote) {
             mSocOus = ous;
-            mClientCallBack.onConnect();
+            mClientStateHandler.onConnect();
         }
 
         @Override
         public void onGotJsonMsg(Beans.CommandMsg msg, OutputStream ous) {
             // cmd
             Log.i(TAG, "onGotJsonMsg: msg:"+msg);
-            mClientCallBack.onGotCmdData(msg);
+            mClientDataHandler.onGotCmdData(msg);
         }
 
         @Override
         public void onSocClosed(Socket socket, OutputStream ous) {
             mSocOus = null;
-            mClientCallBack.onDisconnect();
+            mClientStateHandler.onDisconnect();
         }
 
         @Override
         public void onGotVideoMsg(Beans.VideoData msg, OutputStream ous) {
 //            Log.i(TAG, "onGotVideoMsg() called with: msg = [" + msg + "], ous = [" + ous + "]");
-            mClientCallBack.onGotVideoData(msg);
+            mClientDataHandler.onGotVideoData(msg);
         }
 
     };
