@@ -237,7 +237,7 @@ public class TransfClient implements ITransferClient{
         @Override
         public void onGotOus(OutputStream ous, String remote) {
             mSocOus = ous;
-            mClientStateHandler.onConnect();
+            mClientStateHandler.onConnect(remote);
         }
 
         @Override

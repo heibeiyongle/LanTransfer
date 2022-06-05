@@ -6,12 +6,25 @@
     android:orientation="vertical"
     tools:context=".MainActivity">
 
-    <TextView
-        android:id="@+id/tv_info"
-        android:padding="10dp"
-        android:layout_gravity="center"
-        android:layout_width="wrap_content"
-        android:layout_height="40dp"/>
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <Button
+            android:id="@+id/v_close"
+            android:text="X"
+            android:padding="5dp"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"/>
+
+        <TextView
+            android:id="@+id/tv_info"
+            android:padding="10dp"
+            android:layout_weight="1"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"/>
+
+    </LinearLayout>
 
     <View
         android:background="#0f0"
@@ -29,13 +42,6 @@
             android:layout_weight="1"
             android:orientation="vertical"
             android:padding="10dp">
-
-            <Button
-                android:id="@+id/v_close"
-                android:text="X"
-                android:padding="10dp"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"/>
 
             <Button
                 android:id="@+id/tv_start_server"
@@ -90,6 +96,7 @@
                     android:layout_gravity="center" />
 
                 <LinearLayout
+                    android:layout_marginLeft="5dp"
                     android:orientation="vertical"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content">

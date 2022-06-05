@@ -22,7 +22,7 @@ public interface IMediaClient {
     interface IStateChangeCallBack{
         void onStartServiceListener();
         void onFindServer();
-        void onServerConnected();
+        void onServerConnected(String clientHost);
         void onServerDisConnected();
         void onVideoStart();
         void onVideoStop();

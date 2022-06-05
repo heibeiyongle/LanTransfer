@@ -4,6 +4,7 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.os.Bundle;
+import android.os.Handler;
 import android.util.Log;
 import android.view.Surface;
 import android.view.SurfaceHolder;
@@ -17,16 +18,86 @@ import com.thunder.lantransf.client.video.IClientApi;
 import com.thunder.lantransf.server.video.IServerApi;
 import com.thunder.lantransf.server.video.ServerApi;
 
+import java.util.Arrays;
+import java.util.List;
+
 
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = "MainActivity";
     SurfaceView mSvClient1;
     SurfaceView mSvClient2;
     TextView mTvInfo;
+
+    ServerStateInfo mServerInfo = new ServerStateInfo();
+    ClientStateInfo mClientInfo = new ClientStateInfo();
+
+    Handler mHandler = new Handler();
+
+    class ServerStateInfo{
+        int serverState;
+        int mediaServerState;
+        String[] clients;
+
+        String getServerStateStr(){
+            if(serverState == IServerApi.IServerStateChangeCallBack.ServerState.STARTED.ordinal()){
+                return "server-started";
+            }else {
+                return "server-none";
+            }
+        }
+
+        String getServerMediaStateStr(){
+            if(mediaServerState == IServerApi.IServerStateChangeCallBack.ServerMediaState.STARTED.ordinal()){
+                return "media-started";
+            } else if(mediaServerState == IServerApi.IServerStateChangeCallBack.ServerMediaState.FIRST_FRAME_GENERATED.ordinal()){
+                return "media-generated";
+            } else if(mediaServerState == IServerApi.IServerStateChangeCallBack.ServerMediaState.FIRST_FRAME_PUBLISHED.ordinal()){
+                return "media-published";
+            } else if(mediaServerState == IServerApi.IServerStateChangeCallBack.ServerMediaState.STOPPED.ordinal()){
+                return "media-stopped";
+            } else {
+                return "media-none";
+            }
+        }
+
+        @Override
+        public String toString() {
+            return "Server: " +
+                    "\n serverState " + getServerStateStr() +
+                    "\n mediaServerState " + getServerMediaStateStr() +
+                    "\n clients=" + Arrays.toString(clients);
+        }
+    }
+
+    class ClientStateInfo{
+        String clientState;
+        String videoState;
+        String clientName;
+
+        @Override
+        public String toString() {
+            return "Client: " +
+                    "\n clientState " + clientState +
+                    "\n videoState " + videoState +
+                    "\n clientName " + clientName ;
+        }
+    }
+
+    private void updateInfo(){
+        mHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                mTvInfo.setText(mServerInfo.toString()+"\n====\n"+mClientInfo.toString());
+            }
+        });
+    }
+
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
         findViewById(R.id.v_close).setOnClickListener(clk);
         findViewById(R.id.tv_start_server).setOnClickListener(clk);
         findViewById(R.id.tv_start_publish_video).setOnClickListener(clk);
@@ -50,9 +121,6 @@ public class MainActivity extends AppCompatActivity {
     View.OnClickListener clk = new View.OnClickListener() {
         @Override
         public void onClick(View view) {
-            if(view instanceof Button){
-                mTvInfo.setText(((Button)view).getText()+" clicked ");
-            }
             switch (view.getId()){
                 case R.id.v_close:{
                     finish();
@@ -101,21 +169,29 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void onServerStateChanged(int state) {
             Log.d(TAG, "onServerStateChanged() called with: state = [" + state + "]");
+            mServerInfo.serverState = state;
+            updateInfo();
         }
 
         @Override
         public void onMediaPublishStateChanged(int state) {
             Log.d(TAG, "onMediaPublishStateChanged() called with: state = [" + state + "]");
+            mServerInfo.mediaServerState = state;
+            updateInfo();
         }
 
         @Override
         public void onGotClient(String clientName) {
             Log.d(TAG, "onGotClient() called with: clientName = [" + clientName + "]");
+            mServerInfo.clients = ServerApi.getInstance().getClientList();
+            updateInfo();
         }
 
         @Override
         public void onLossClient(String clientName) {
             Log.d(TAG, "onLossClient() called with: clientName = [" + clientName + "]");
+            mServerInfo.clients = ServerApi.getInstance().getClientList();
+            updateInfo();
         }
     };
 
@@ -208,41 +284,44 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void onRegFind() {
             Log.d(TAG, "onRegFind() called");
+            mClientInfo.clientState = "onRegFind";
+            updateInfo();
         }
 
         @Override
         public void onFindServer() {
             Log.d(TAG, "onFindServer() called");
+            mClientInfo.clientState = "onFindServer";
+            updateInfo();
         }
 
         @Override
-        public void onServerConnected() {
+        public void onServerConnected(String clientName) {
             Log.d(TAG, "onServerConnected() called");
+            mClientInfo.clientState = "onServerConnected";
+            mClientInfo.clientName = clientName;
+            updateInfo();
         }
 
         @Override
         public void onServerDisConnected() {
             Log.d(TAG, "onServerDisConnected() called");
-        }
-
-        @Override
-        public void onConnectStateChanged(int state) {
-            Log.d(TAG, "onConnectStateChanged() called with: state = [" + state + "]");
-        }
-
-        @Override
-        public void onConnectServer(String clientName) {
-            Log.d(TAG, "onConnectServer() called with: clientName = [" + clientName + "]");
+            mClientInfo.clientState = "onServerDisConnected";
+            updateInfo();
         }
 
         @Override
         public void onVideoStart() {
             Log.d(TAG, "onVideoStart() called");
+            mClientInfo.videoState = "onVideoStart";
+            updateInfo();
         }
 
         @Override
         public void onVideoStop() {
             Log.d(TAG, "onVideoStop() called");
+            mClientInfo.videoState = "onVideoStop";
+            updateInfo();
         }
     };
 }

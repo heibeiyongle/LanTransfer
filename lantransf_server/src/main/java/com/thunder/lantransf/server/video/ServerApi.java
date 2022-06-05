@@ -3,6 +3,8 @@ package com.thunder.lantransf.server.video;
 import android.content.Context;
 import android.view.Surface;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 
 public class ServerApi implements IServerApi {
@@ -47,7 +49,8 @@ public class ServerApi implements IServerApi {
     // for debug info
     @Override
     public String[] getClientList() {
-        return (String[]) ServerManager.getInstance().getClientList().toArray();
+        String[] dest = new String[ServerManager.getInstance().getClientList().size()];
+        return ServerManager.getInstance().getClientList().toArray(dest);
     }
 
     @Override
@@ -83,7 +86,7 @@ public class ServerApi implements IServerApi {
         @Override
         public void onServicePublishCanceled() {
             if(mNotify != null){
-                mNotify.onServerStateChanged(IServerStateChangeCallBack.ServerState.STOPED.ordinal());
+                mNotify.onServerStateChanged(IServerStateChangeCallBack.ServerState.STOPPED.ordinal());
             }
         }
 

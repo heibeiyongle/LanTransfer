@@ -20,7 +20,7 @@ public interface IServerApi {
         enum ServerState{
             NONE,
             STARTED,
-            STOPED
+            STOPPED
         }
 
         enum ServerMediaState{

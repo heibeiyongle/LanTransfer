@@ -146,9 +146,9 @@ class MediaClient implements IMediaClient{
         }
 
         @Override
-        public void onConnect() {
+        public void onConnect(String clientHost) {
             if(mNotify != null){
-                mNotify.onServerConnected();
+                mNotify.onServerConnected(clientHost);
             }
             mVideoQue.clear();
             //sync time , start msg

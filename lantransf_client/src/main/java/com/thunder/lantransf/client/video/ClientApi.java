@@ -87,9 +87,9 @@ public class ClientApi implements IClientApi{
         }
 
         @Override
-        public void onServerConnected() {
+        public void onServerConnected(String remoteHost) {
             if(mNotify != null){
-                mNotify.onServerConnected();
+                mNotify.onServerConnected(remoteHost);
             }
         }
 

@@ -33,7 +33,7 @@ public interface ITransferClient {
         void onRegFindService();
         void onFindServerService();
         void onGotServerInfo();
-        void onConnect();
+        void onConnect(String clientHost);
         void onDisconnect();
     }
 

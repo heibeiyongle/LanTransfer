@@ -22,10 +22,8 @@ public interface IClientApi {
     interface IClientStateChangeCallBack{
         void onRegFind();
         void onFindServer();
-        void onServerConnected();
+        void onServerConnected(String clientHost);
         void onServerDisConnected();
-        void onConnectStateChanged(int state);
-        void onConnectServer(String clientName);
         void onVideoStart();
         void onVideoStop();
     }
