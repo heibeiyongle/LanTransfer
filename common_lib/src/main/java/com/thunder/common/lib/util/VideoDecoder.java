@@ -273,6 +273,7 @@ public class VideoDecoder {
                                 mInnerFrames.put(rs);
                             }
                             if(mInnerFramesObj != null){
+                                //todo 确认config frame
                                 Beans.VideoData tmpDataObj = new Beans.VideoData(isFirstFrame,false,1024,768, rs);
                                 mInnerFramesObj.put(tmpDataObj);
 //                                Log.i(TAG, "run: read file frame ---- size: "+ readFrameSize++);

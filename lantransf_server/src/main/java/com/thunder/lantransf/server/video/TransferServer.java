@@ -69,10 +69,10 @@ class TransferServer implements ITransfServer {
             return "ClientSession{" +
                     "clientId=" + clientId +
                     ", ip='" + ip + '\'' +
-                    ", connectTimeMs=" + connectTimeMs +
-                    ", isActive=" + isActive +
-                    ", isSendCfg=" + isSendCfg +
-                    ", mOus=" + mOus +
+//                    ", connectTimeMs=" + connectTimeMs +
+//                    ", isActive=" + isActive +
+//                    ", isSendCfg=" + isSendCfg +
+//                    ", mOus=" + mOus +
                     '}';
         }
     }

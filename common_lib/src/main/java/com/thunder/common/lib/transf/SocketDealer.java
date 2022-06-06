@@ -43,13 +43,13 @@ public class SocketDealer implements ITransf {
                 try {
                     InputStream ins = mSoc.getInputStream();
                     mOus = mSoc.getOutputStream();
-                    InetAddress remoteAddress = mSoc.getInetAddress();
-                    String remoteHost = null;
-                    if(remoteAddress != null){
-                        remoteHost = remoteAddress.getHostName();
+                    InetAddress localAddress = mSoc.getLocalAddress();
+                    String localHost = null;
+                    if(localAddress != null){
+                        localHost = localAddress.getHostName();
                     }
                     if(mCb!=null){
-                        mCb.onGotOus(mOus,remoteHost);
+                        mCb.onGotOus(mOus,localHost);
                     }
                     /** [len 4][type][data]
                         data:[channel][payload]
