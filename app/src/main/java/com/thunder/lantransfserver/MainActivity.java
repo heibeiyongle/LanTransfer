@@ -10,23 +10,28 @@ import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.View;
-import android.widget.Button;
 import android.widget.TextView;
 
+import com.google.gson.internal.LinkedTreeMap;
+import com.thunder.common.lib.dto.Beans;
+import com.thunder.common.lib.util.GsonUtils;
 import com.thunder.lantransf.client.video.ClientApi;
 import com.thunder.lantransf.client.video.IClientApi;
+import com.thunder.lantransf.msg.CmdMsg;
+import com.thunder.lantransf.msg.TransfMsgWrapper;
+import com.thunder.lantransf.msg.codec.CodecUtil;
 import com.thunder.lantransf.server.video.IServerApi;
 import com.thunder.lantransf.server.video.ServerApi;
 
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 
 
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = "MainActivity";
     SurfaceView mSvClient1;
-    SurfaceView mSvClient2;
     TextView mTvInfo;
+    TextView mTvIMsgnfo;
 
     ServerStateInfo mServerInfo = new ServerStateInfo();
     ClientStateInfo mClientInfo = new ClientStateInfo();
@@ -101,20 +106,17 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.v_close).setOnClickListener(clk);
         findViewById(R.id.tv_start_server).setOnClickListener(clk);
         findViewById(R.id.tv_start_publish_video).setOnClickListener(clk);
-
+        findViewById(R.id.tv_send_msg_play_state).setOnClickListener(clk);
 
         mSvClient1 = findViewById(R.id.sv_client);
-        findViewById(R.id.tv_start_client).setOnClickListener(clk);
-        findViewById(R.id.tv_stop_client).setOnClickListener(clk);
-
-
-        mSvClient2 = findViewById(R.id.sv_client2);
-        findViewById(R.id.tv_show2).setOnClickListener(clk);
-        findViewById(R.id.tv_hide2).setOnClickListener(clk);
+        findViewById(R.id.tv_client_show).setOnClickListener(clk);
+        findViewById(R.id.tv_client_hidden).setOnClickListener(clk);
+        findViewById(R.id.tv_client_btnckl).setOnClickListener(clk);
+        findViewById(R.id.tv_client_get_state).setOnClickListener(clk);
 
         mTvInfo = findViewById(R.id.tv_info);
+        mTvIMsgnfo = findViewById(R.id.rec_msg_info);
         initClient1();
-//        initClient2();
     }
 
 
@@ -135,25 +137,28 @@ public class MainActivity extends AppCompatActivity {
                     startPublish();
                     break;
                 }
-
-                case R.id.tv_start_client:{
-                    startClient();
-                    break;
-                }
-                case R.id.tv_stop_client:{
-                    stopClient();
+                case R.id.tv_send_msg_play_state:{
+                    serverBroadMsg();
                     break;
                 }
 
-//                case R.id.tv_show2:{
-//                    startClient2();
-//                    break;
-//                }
-//                case R.id.tv_hide2:{
-//                    stopClient2();
-//                    break;
-//                }
-
+                // client
+                case R.id.tv_client_show:{
+                    startShow();
+                    break;
+                }
+                case R.id.tv_client_hidden:{
+                    stopShow();
+                    break;
+                }
+                case R.id.tv_client_btnckl:{
+                    sendBtnClickMsgToServer();
+                    break;
+                }
+                case R.id.tv_client_get_state:{
+                    sendGetPlayStateMsgToServer();
+                    break;
+                }
             }
         }
     };
@@ -163,6 +168,7 @@ public class MainActivity extends AppCompatActivity {
         ServerApi.getInstance().init(this);
         ServerApi.getInstance().startServer();
         ServerApi.getInstance().setStateChangeCallBack(serverStateCb);
+        ServerApi.getInstance().setMsgHandler(mServerRecMsgHandler);
     }
 
     IServerApi.IServerStateChangeCallBack serverStateCb = new IServerApi.IServerStateChangeCallBack() {
@@ -196,10 +202,77 @@ public class MainActivity extends AppCompatActivity {
     };
 
     private void startPublish(){
+        Log.d(TAG, "startPublish() called");
         Surface sinkSurface = ServerApi.getInstance().startPublishMedia();
     }
 
+    private void serverBroadMsg(){
+        Log.d(TAG, "serverBroadMsg() called");
+        CmdMsg.ResPlayState playState = new CmdMsg.ResPlayState();
+        playState.playing = true;
+        String tmpStr = CodecUtil.encodeMsg(playState);
+        ServerApi.getInstance().sendMsg(null,tmpStr);
+        printMsg("server -> send play state ");
+    }
 
+    private void printMsg(String text){
+        mHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                mTvIMsgnfo.append(text+"\n");
+            }
+        });
+    }
+
+//    ["msg":{"clickType":"ACC_BTN"},"msgClassName":"ReqUserClickAction"}], from = [2]
+
+    IServerApi.IRecMsgHandler mServerRecMsgHandler = new IServerApi.IRecMsgHandler() {
+        @Override
+        public void onGetMsg(String msg, String from) {
+            Log.d(TAG, " Server -> onGetMsg() called with: msg = [" + msg + "], from = [" + from + "]");
+            TransfMsgWrapper msgWrapper = CodecUtil.decodeMsg(msg);
+            String msgType = msgWrapper.getMsgClassName();
+            printMsg("server <- get "+msgType);
+            if(CmdMsg.ReqCommon.class.getSimpleName().equals(msgType)){
+                CmdMsg.ReqCommon tmpMsg = GsonUtils.parseFromLinkedTreeMap(
+                    (LinkedTreeMap) msgWrapper.getMsg(), CmdMsg.ReqCommon.class);
+
+                if(CmdMsg.ReqCommon.Type.getPlayState.name().equals(tmpMsg.type)){
+                    // getState
+                    CmdMsg.ResPlayState res = new CmdMsg.ResPlayState();
+                    res.playing = true; // mock
+                    String tmpDest = CodecUtil.encodeMsg(res);
+                    ArrayList<String> targets = new ArrayList<>();
+                    targets.add(from);
+                    ServerApi.getInstance().sendMsg(targets,tmpDest);
+                }
+            }else if(CmdMsg.ReqUserClickAction.class.getSimpleName().equals(msgType)){
+                    CmdMsg.ReqUserClickAction tmpMsg = GsonUtils.parseFromLinkedTreeMap(
+                        (LinkedTreeMap) msgWrapper.getMsg(), CmdMsg.ReqUserClickAction.class);
+                // perform
+                if(CmdMsg.ReqUserClickAction.Type.PLAY_BTN.name().equals(tmpMsg.clickType)){
+                    Log.i(TAG, "onGetMsg: PLAY_BTN");
+                }else if(CmdMsg.ReqUserClickAction.Type.ACC_BTN.name().equals(tmpMsg.clickType)){
+                    Log.i(TAG, "onGetMsg: ACC_BTN");
+                }
+            }
+        }
+
+        @Override
+        public void onGetMsg(byte[] msg, String from) {
+            //todo
+        }
+    };
+
+
+
+
+//========================================================================================
+//========================================================================================
+//================== client api demo =====================================================
+//========================================================================================
+//========================================================================================
+//========================================================================================
 
 
     ClientApi clientApi1;
@@ -226,57 +299,53 @@ public class MainActivity extends AppCompatActivity {
                 clientApi1.stopShow();
             }
         });
+
+        clientApi1.setMsgHandler(mClientRecMsgHandler);
     }
 
+    IClientApi.IRecMsgHandler mClientRecMsgHandler = new IClientApi.IRecMsgHandler() {
+        @Override
+        public void onGetMsg(String msg, String from) {
+            Log.d(TAG, " Client --> onGetMsg() called with: msg = [" + msg + "], from = [" + from + "]");
+            TransfMsgWrapper wrapper = CodecUtil.decodeMsg(msg);
+            String msgType = wrapper.getMsgClassName();
+            printMsg("client <- get "+msgType);
+            if(CmdMsg.ResAccState.class.getSimpleName().equals(msgType)){
+                CmdMsg.ResAccState tmpMsg = GsonUtils.parseFromLinkedTreeMap(
+                        (LinkedTreeMap) wrapper.getMsg(), CmdMsg.ResAccState.class);
+                Log.d(TAG, "onGetMsg() called with: CmdMsg.ResAccState "+tmpMsg);
+            }
+        }
 
+        @Override
+        public void onGetMsg(byte[] msg, String from) {
+            //todo
+        }
+    };
 
-    private void startClient(){
+    private void startShow(){
         mSvClient1.setVisibility(View.VISIBLE);
     }
 
-    private void stopClient(){
+    private void stopShow(){
         mSvClient1.setVisibility(View.INVISIBLE);
     }
 
-
-
-    /*
-    ClientApi clientApi2;
-    private void initClient2(){
-        // 自动开始  鲁棒性
-        clientApi2 = ClientApi.getInstance();
-        clientApi2.init(MainActivity.this);
-        clientApi2.autoConnectServer();
-        clientApi2.setStateChangeCallBack(mClientApiCb);
-
-        mSvClient2.getHolder().addCallback(new SurfaceHolder.Callback() {
-            @Override
-            public void surfaceCreated(@NonNull SurfaceHolder surfaceHolder) {
-                clientApi2.startShow(surfaceHolder.getSurface());
-            }
-
-            @Override
-            public void surfaceChanged(@NonNull SurfaceHolder surfaceHolder, int i, int i1, int i2) {
-
-            }
-
-            @Override
-            public void surfaceDestroyed(@NonNull SurfaceHolder surfaceHolder) {
-                clientApi2.stopShow();
-            }
-        });
+    private void sendGetPlayStateMsgToServer(){
+        CmdMsg.ReqCommon reqCommon = new CmdMsg.ReqCommon();
+        reqCommon.type = CmdMsg.ReqCommon.Type.getPlayState.name();
+        String tmpStr = CodecUtil.encodeMsg(reqCommon);
+        clientApi1.sendMsg(null,tmpStr);
+        printMsg("client -> send getPlayState ");
     }
 
-    private void startClient2(){
-        mSvClient2.setVisibility(View.VISIBLE);
+    private void sendBtnClickMsgToServer(){
+        CmdMsg.ReqUserClickAction clkAct = new CmdMsg.ReqUserClickAction();
+        clkAct.clickType = CmdMsg.ReqUserClickAction.Type.ACC_BTN.name();
+        String tmpStr = CodecUtil.encodeMsg(clkAct);
+        clientApi1.sendMsg(null,tmpStr);
+        printMsg("client -> send ACC_BTN ");
     }
-
-    private void stopClient2(){
-        mSvClient2.setVisibility(View.INVISIBLE);
-    }
-
-     */
-
 
 
     IClientApi.IClientStateChangeCallBack mClientApiCb = new IClientApi.IClientStateChangeCallBack(){

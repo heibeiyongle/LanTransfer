@@ -1,9 +1,13 @@
 package com.thunder.lantransf.server.video;
 
 import android.content.Context;
+import android.util.Log;
 import android.view.Surface;
 
+import com.thunder.common.lib.dto.Beans;
+
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 
@@ -53,18 +57,50 @@ public class ServerApi implements IServerApi {
         return ServerManager.getInstance().getClientList().toArray(dest);
     }
 
+    private static final String TAG = "ServerApi";
+    @Override
+    public void sendMsg(List<String> targets, String msg) {
+        HashSet<String> destTarget = null;
+        if(targets != null && targets.size() > 0){
+            destTarget = new HashSet<String>();
+            destTarget.addAll(targets);
+        }
+        if(ServerManager.getInstance().mMsgDealer == null){
+            Log.e(TAG, "sendMsg(), mMsgDealer NOT-INIT, return ! ");
+            return;
+        }
+        ServerManager.getInstance().mMsgDealer.sendCmd(
+                Beans.TransfPkgMsg.Builder.genSpecTargetsMsg(msg,destTarget,0));
+    }
+
+    @Override
+    public void sendMsg(List<String> targets, byte[] msg) {
+        //todo
+    }
+
+    IRecMsgHandler mOuterMsgHandler = null;
+    @Override
+    public void setMsgHandler(IRecMsgHandler handler) {
+        mOuterMsgHandler = handler;
+        ServerManager.getInstance().setOutMsgHandler(mInnerOutMsgHandler);
+    }
+
+    IOuterMsgRec.IOutMsgHandler mInnerOutMsgHandler = new IOuterMsgRec.IOutMsgHandler() {
+        @Override
+        public void onGotMsg(String msg, String from) {
+            if(mOuterMsgHandler != null){
+                mOuterMsgHandler.onGetMsg(msg,from);
+            }
+        }
+    };
+
+
     @Override
     public void setStateChangeCallBack(IServerStateChangeCallBack cb) {
         mNotify = cb;
-        /*
-        interface IServerStateChangeCallBack{
-            void onServerStateChanged(int state); // none started stoped
-            void onMediaPublishStateChanged(int state); // none started stop
-            void onGotClient(String clientName); //clientName server generate
-            void onLossClient(String clientName);
-        }
-        */
     }
+
+
 
     IServerManager.IServerStateCallBack mInnerServerStateCallBack = new IServerManager.IServerStateCallBack() {
         @Override

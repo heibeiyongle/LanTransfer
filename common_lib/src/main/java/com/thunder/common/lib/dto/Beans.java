@@ -1,10 +1,15 @@
 package com.thunder.common.lib.dto;
 
+import android.text.TextUtils;
+import android.util.Log;
+
 import androidx.annotation.Keep;
 
 
 import com.thunder.common.lib.transf.SocketDealer;
 
+import java.io.UnsupportedEncodingException;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.HashSet;
 
@@ -86,75 +91,107 @@ public class Beans {
 
     }
 
-    public static class CommandMsg {
+    public static class TransfPkgMsg {
         // null 广播消息,except self.
         // [0] server handle
         // [x1], [x2] x1 x2
-        public HashSet<Integer> targets;
-        private String type;
-        private Object body;
+        private int srcType; // 0 outer, 1 inner
+        /*
+            server: null for broadCast, [x1,x2] for dest-x1 dest-x2
+            client: x1, x2, s1 ...
+         */
+        public HashSet<String> targets;
+
+        private int formatType; // 0 string 1 byte[]
+        private byte[] payload;
+
 
         public static class Builder{
-            public static CommandMsg genBroadCastMsg(Object content){
-                return new CommandMsg(content);
+            public static TransfPkgMsg genBroadCastMsg(String msg,int srcT){
+                checkEmpty(msg);
+                return new TransfPkgMsg(strToBytes(msg),0,srcT);
             }
-            public static CommandMsg genP2PMsg(Object content,int target){
-                return new CommandMsg(content,target);
+            public static TransfPkgMsg genP2PMsg(String msg, String target, int srcT){
+                checkEmpty(msg);
+                return new TransfPkgMsg(target,strToBytes(msg),0,srcT);
             }
-            public static CommandMsg genSpecTargetsMsg(Object content,HashSet<Integer> targets){
-                return new CommandMsg(content,targets);
+            public static TransfPkgMsg genSpecTargetsMsg(String msg, HashSet<String> targets, int srcT){
+                checkEmpty(msg);
+                return new TransfPkgMsg(targets,strToBytes(msg),0, srcT);
             }
         }
 
+        private static void checkEmpty(String msg){
+            if(TextUtils.isEmpty(msg)){
+                throw new RuntimeException("checkEmpty msg should not empty! msg:["+msg+"]");
+            }
+        }
+
+        private static final String TAG = "TransfPkgMsg";
+        private static byte[] strToBytes(String src){
+//            Log.d(TAG, "strToBytes() called with: src = [" + src + "]");
+            if(TextUtils.isEmpty(src)){
+                byte[] dest = new byte[0];
+                return dest;
+            }
+            byte[] dest = src.getBytes(StandardCharsets.UTF_8);
+            return dest;
+        }
+
+        public String getStrPayload(){
+            String tmpStr = "";
+            try {
+                tmpStr = new String(payload,StandardCharsets.UTF_8.name());
+            } catch (UnsupportedEncodingException e) {
+                e.printStackTrace();
+            }
+            return tmpStr;
+        }
 
         @Keep
-        private CommandMsg(Object content) {
-            if (content != null) {
-                this.type = content.getClass().getSimpleName();
-                this.body = content;
-            }
-        }
-        private CommandMsg(Object content,int target) {
-            this.targets = new HashSet<>();
-            this.targets.add(target);
-            if (content != null) {
-                this.type = content.getClass().getSimpleName();
-                this.body = content;
-            }
+        private TransfPkgMsg(byte[] data, int originFormat, int srcT) {
+            this.srcType = srcT;
+            this.payload = data;
+            this.formatType = originFormat;
         }
 
-        private CommandMsg(Object content,HashSet<Integer> targets) {
-            if (content != null) {
-                this.targets = new HashSet<>(targets);
-                this.type = content.getClass().getSimpleName();
-                this.body = content;
+        private TransfPkgMsg(String target, byte[] data, int originFormat, int srcT) {
+            this.srcType = srcT;
+            this.targets = new HashSet<>();
+            this.targets.add(target);
+            this.payload = data;
+            this.formatType = originFormat;
+        }
+
+        private TransfPkgMsg(HashSet<String> targets, byte[] data, int originFormat, int srcT) {
+            this.srcType = srcT;
+            if(targets != null && targets.size() > 0){
+                this.targets = targets;
             }
+            this.payload = data;
+            this.formatType = originFormat;
         }
 
         @Override
         public String toString() {
             return "ControlMsg{" +
-                    "type='" + type + '\'' +
-                    ", body=" + body +
+                    "formatBytes=" + (this.isOriginPayloadBytes()?" byteArray ":" String ") +
+                    ", body=" + (isOriginPayloadBytes()? " byte-s " :getStrPayload() ) +
+                    ", targets =" + this.targets +
                     '}';
         }
 
-        public String getType() {
-            return type;
+        public byte[] getPayload() {
+            return payload;
         }
 
-        public void setType(String type) {
-            this.type = type;
+        public boolean isInnerCmdMsg(){
+            return srcType == 1;
         }
 
-        public Object getBody() {
-            return body;
+        public boolean isOriginPayloadBytes(){
+            return formatType == 1;
         }
-
-        public void setBody(Object body) {
-            this.body = body;
-        }
-
 
         public static class VideoChannelState{
             public boolean active;
@@ -200,58 +237,6 @@ public class Beans {
                 return "ReqReportClientInfo{" +
                         "clientName='" + clientName + '\'' +
                         ", netDelay=" + netDelay +
-                        '}';
-            }
-        }
-
-        public static class ReqCommon{
-            public static enum Type{
-                getPlayState,
-                getAccState,
-            }
-            public String type;
-
-            @Override
-            public String toString() {
-                return "ReqCommon{" +
-                        "type='" + type + '\'' +
-                        '}';
-            }
-        }
-
-        public static class ResPlayState{
-            public boolean playing; // play / pause
-
-            @Override
-            public String toString() {
-                return "ResPlayState{" +
-                        "playing=" + playing +
-                        '}';
-            }
-        }
-
-        public static class ResAccState{
-            public int accType; // 0/1
-
-            @Override
-            public String toString() {
-                return "ResAccState{" +
-                        "accType=" + accType +
-                        '}';
-            }
-        }
-
-        public static class ReqUserClickAction{
-            public enum Type {
-                PLAY_BTN,
-                ACC_BTN,
-            }
-            public String clickType = "";
-
-            @Override
-            public String toString() {
-                return "ReqUserClickAction{" +
-                        "clickType=" + clickType +
                         '}';
             }
         }

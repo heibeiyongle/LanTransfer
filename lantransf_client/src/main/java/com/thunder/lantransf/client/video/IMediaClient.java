@@ -3,6 +3,8 @@ package com.thunder.lantransf.client.video;
 import android.content.Context;
 import android.view.Surface;
 
+import com.thunder.common.lib.dto.Beans;
+
 public interface IMediaClient {
 
     void init(Context context);
@@ -14,8 +16,12 @@ public interface IMediaClient {
     void startShow(Surface surface);
     void stopShow();
 
-    void onPlayBtnClick();
-    void onAccBtnClick();
+    void sendMsg(Beans.TransfPkgMsg msg);
+    void setRecMsgHandler(IRecMsgHandler handler);
+
+    interface IRecMsgHandler{
+        void onGetMsg(Beans.TransfPkgMsg msg);
+    }
 
     void setStateChangeCallBack(IStateChangeCallBack cb);
 

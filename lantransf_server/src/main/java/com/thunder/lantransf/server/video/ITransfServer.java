@@ -32,9 +32,10 @@ interface ITransfServer {
     void setMsgDealer(IClientMsgDealer dealer);
     void setStateCallBack(ITransfServerStateCallBack cb);
     List<String> getClientList();
+    String getServerTargetName();
 
     interface IClientMsgDealer{
-        void onGotCmd(Beans.CommandMsg msg, TransferServer.ClientSession session);
+        void onGotCmd(Beans.TransfPkgMsg msg, TransferServer.ClientSession session);
     }
 
 

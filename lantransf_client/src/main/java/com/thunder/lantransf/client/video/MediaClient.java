@@ -12,6 +12,8 @@ import com.google.gson.internal.LinkedTreeMap;
 import com.thunder.common.lib.bean.NetTimeInfo;
 import com.thunder.common.lib.dto.Beans;
 import com.thunder.common.lib.util.GsonUtils;
+import com.thunder.lantransf.msg.TransfMsgWrapper;
+import com.thunder.lantransf.msg.codec.CodecUtil;
 
 import java.nio.ByteBuffer;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -72,8 +74,8 @@ class MediaClient implements IMediaClient{
         mDecThread.start();
 
         mTransfClient.sendViewActive();
-        mTransfClient.getAccState();
-        mTransfClient.getPlayState();
+//        mTransfClient.getAccState();
+//        mTransfClient.getPlayState();
 
     }
 
@@ -87,16 +89,6 @@ class MediaClient implements IMediaClient{
             mDecThread.exitLoop();
             mDecThread = null;
         }
-    }
-
-    @Override
-    public void onPlayBtnClick() {
-        mTransfClient.sendPlayBtnClick();
-    }
-
-    @Override
-    public void onAccBtnClick() {
-        mTransfClient.sendAccBtnClick();
     }
 
     @Override
@@ -118,12 +110,30 @@ class MediaClient implements IMediaClient{
         }
 
         @Override
-        public void onGotCmdData(Beans.CommandMsg data) {
+        public void onGotCmdData(Beans.TransfPkgMsg data) {
             // cmd msg
-            dealCmdMsg(data);
+            if(data.isInnerCmdMsg()){
+                dealCmdMsg(data);
+            }else {
+                if(mOutMsgHandler != null){
+                    mOutMsgHandler.onGetMsg(data);
+                }
+            }
+
         }
     };
 
+
+    @Override
+    public void sendMsg(Beans.TransfPkgMsg msg) {
+        mTransfClient.sendMsg(msg);
+    }
+
+    IRecMsgHandler mOutMsgHandler;
+    @Override
+    public void setRecMsgHandler(IRecMsgHandler handler) {
+        mOutMsgHandler = handler;
+    }
 
     ITransferClient.IClientStateHandler mInnerStateHandler = new ITransferClient.IClientStateHandler() {
         @Override
@@ -166,41 +176,52 @@ class MediaClient implements IMediaClient{
 
 
 
-    private void dealCmdMsg(Beans.CommandMsg msg){
+    private void dealCmdMsg(Beans.TransfPkgMsg msg){
         Log.i(TAG, "dealCmdMsg: msg: "+msg);
         /*
          1. sync time res
             report client info
          2. play state res
          */
-        if(Beans.CommandMsg.ResSyncTime.class.getSimpleName().equals(msg.getType())){
+
+        if(msg.isOriginPayloadBytes()){
+            // todo ,step 2 to support byte[]
+            return;
+        }
+
+        TransfMsgWrapper msgWrapper = CodecUtil.decodeMsg(msg.getStrPayload());
+        String msgType = msgWrapper.getMsgClassName();
+
+        if(Beans.TransfPkgMsg.ResSyncTime.class.getSimpleName().equals(msgType)){
             // save it
             // report client info
-            Beans.CommandMsg.ResSyncTime tmpMsg = GsonUtils.parseFromLinkedTreeMap(
-                    (LinkedTreeMap) msg.getBody(), Beans.CommandMsg.ResSyncTime.class);
+            Beans.TransfPkgMsg.ResSyncTime tmpMsg = GsonUtils.parseFromLinkedTreeMap(
+                    (LinkedTreeMap) msgWrapper.getMsg(), Beans.TransfPkgMsg.ResSyncTime.class);
             dealSyncTimeRes(tmpMsg);
             mTransfClient.reportClientInfo("xxx",mNetTimeInfo.getTransfCostTime());
 
-        }else if(Beans.CommandMsg.ResAccState.class.getSimpleName().equals(msg.getType())){
-            Beans.CommandMsg.ResAccState tmpMsg = GsonUtils.parseFromLinkedTreeMap(
-                    (LinkedTreeMap) msg.getBody(), Beans.CommandMsg.ResAccState.class);
-            if(mNotify != null && tmpMsg != null){
-                mNotify.onAccStateChanged(tmpMsg.accType);
-            }
-        }else if(Beans.CommandMsg.ResPlayState.class.getSimpleName().equals(msg.getType())){
-            Beans.CommandMsg.ResPlayState tmpMsg = GsonUtils.parseFromLinkedTreeMap(
-                    (LinkedTreeMap) msg.getBody(), Beans.CommandMsg.ResPlayState.class);
-            if(mNotify != null && tmpMsg != null){
-                mNotify.onPlayStateChanged(tmpMsg.playing);
-            }
         }
+
+//        else if(Beans.TransfPkgMsg.ResAccState.class.getSimpleName().equals(msg.getType())){
+//            Beans.TransfPkgMsg.ResAccState tmpMsg = GsonUtils.parseFromLinkedTreeMap(
+//                    (LinkedTreeMap) msgWrapper.getMsg(), Beans.TransfPkgMsg.ResAccState.class);
+//            if(mNotify != null && tmpMsg != null){
+//                mNotify.onAccStateChanged(tmpMsg.accType);
+//            }
+//        }else if(Beans.TransfPkgMsg.ResPlayState.class.getSimpleName().equals(msg.getType())){
+//            Beans.TransfPkgMsg.ResPlayState tmpMsg = GsonUtils.parseFromLinkedTreeMap(
+//                    (LinkedTreeMap) msgWrapper.getMsg(), Beans.TransfPkgMsg.ResPlayState.class);
+//            if(mNotify != null && tmpMsg != null){
+//                mNotify.onPlayStateChanged(tmpMsg.playing);
+//            }
+//        }
 
 
     }
 
     NetTimeInfo mNetTimeInfo = null;
 
-    private void dealSyncTimeRes(Beans.CommandMsg.ResSyncTime res){
+    private void dealSyncTimeRes(Beans.TransfPkgMsg.ResSyncTime res){
         long startTime = res.req.clientTimeMs;
         long endTime = System.currentTimeMillis();
         long transfCostTime = (endTime - startTime)/2;

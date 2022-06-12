@@ -3,6 +3,7 @@ package com.thunder.lantransf.client.video;
 import android.content.Context;
 import android.view.Surface;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -17,6 +18,18 @@ public interface IClientApi {
     boolean autoConnectServer();
     boolean startShow(Surface surface);
     boolean stopShow();
+
+    void sendMsg(List<String> targets, String msg);
+    // TODO
+    void sendMsg(List<String> targets, byte[] msg);
+
+    void setMsgHandler( IRecMsgHandler handler);
+    interface IRecMsgHandler{
+        void onGetMsg(String msg, String from);
+        void onGetMsg(byte[] msg, String from);
+    }
+
+
     void setStateChangeCallBack( IClientStateChangeCallBack cb);
 
     interface IClientStateChangeCallBack{

@@ -14,19 +14,17 @@ public interface ITransferClient {
 
     void sendViewActive();
     void sendViewInActive();
-    void sendPlayBtnClick();
-    void sendAccBtnClick();
     void syncNetTime();
     void reportClientInfo(String clientName, long netDelay);
-    void getPlayState();
-    void getAccState();
+
+    void sendMsg(Beans.TransfPkgMsg msg);
 
     void setClientDataHandler(IClientDataHandler cb);
     void setClientStateHandler(IClientStateHandler cb);
 
     interface IClientDataHandler{
         void onGotVideoData(Beans.VideoData data);
-        void onGotCmdData(Beans.CommandMsg data);
+        void onGotCmdData(Beans.TransfPkgMsg data);
     }
 
     interface IClientStateHandler{

@@ -14,7 +14,7 @@ public interface ITransf {
         void onGotOus(OutputStream ous, String local);
         void onSocClosed(Socket socket, OutputStream ous);
         void onGotVideoMsg(Beans.VideoData msg, OutputStream ous);
-        void onGotJsonMsg(Beans.CommandMsg msg, OutputStream ous);
+        void onGotJsonMsg(Beans.TransfPkgMsg msg, OutputStream ous);
     }
 
 

@@ -164,8 +164,8 @@ public class SocketDealer implements ITransf {
         if(channelId == Beans.Channel.Command.ordinal()){
             try {
                 String tmpStr = new String(Arrays.copyOfRange(data,1,data.length),StandardCharsets.UTF_8.name());
-                Beans.CommandMsg commandMsg = GsonUtils.parse(tmpStr, Beans.CommandMsg.class);
-                mCb.onGotJsonMsg(commandMsg,ous);
+                Beans.TransfPkgMsg transfPkgMsg = GsonUtils.parse(tmpStr, Beans.TransfPkgMsg.class);
+                mCb.onGotJsonMsg(transfPkgMsg,ous);
             } catch (UnsupportedEncodingException e) {
                 e.printStackTrace();
             }
@@ -183,11 +183,11 @@ public class SocketDealer implements ITransf {
     public static final byte DATA_TYPE_PKG_RANGE_FIRST  = 1;
     public static final byte DATA_TYPE_PKG_RANGE_MIDDLE  = 2;
     public static final byte DATA_TYPE_PKG_RANGE_END  = 3;
-    public static void sendCmdMsg(OutputStream ous, Beans.CommandMsg msg){
+    public static void sendCmdMsg(OutputStream ous, Beans.TransfPkgMsg msg){
         Log.i(TAG, "sendControlMsg() called with: ous = [" + ous + "], msg = [" + msg + "]");
         String tmp = GsonUtils.toJson(msg);
         Log.i(TAG, "sendControlMsg() json: "+tmp);
-        GsonUtils.parse(tmp, Beans.CommandMsg.class);
+//        GsonUtils.parse(tmp, Beans.CommandMsg.class);
         try {
             byte[] data = tmp.getBytes(StandardCharsets.UTF_8);
             byte[] dest = packageSingleMsg(Beans.Channel.Command.ordinal(), data);

@@ -8,10 +8,12 @@ import android.util.Log;
 import com.thunder.common.lib.dto.Beans;
 import com.thunder.common.lib.transf.ITransf;
 import com.thunder.common.lib.transf.SocketDealer;
+import com.thunder.lantransf.msg.codec.CodecUtil;
 
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.Socket;
+import java.util.HashSet;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
@@ -67,59 +69,65 @@ public class TransfClient implements ITransferClient{
 
     @Override
     public void sendViewActive() {
-        Beans.CommandMsg.VideoChannelState state = new Beans.CommandMsg.VideoChannelState();
+        Beans.TransfPkgMsg.VideoChannelState state = new Beans.TransfPkgMsg.VideoChannelState();
         state.active = true;
-        addCmdToQue(state,0);
+        addInnerMsgToQue(state,0);
     }
 
     @Override
     public void sendViewInActive() {
-        Beans.CommandMsg.VideoChannelState state = new Beans.CommandMsg.VideoChannelState();
+        Beans.TransfPkgMsg.VideoChannelState state = new Beans.TransfPkgMsg.VideoChannelState();
         state.active = false;
-        addCmdToQue(state,0);
+        addInnerMsgToQue(state,0);
     }
 
     @Override
-    public void sendPlayBtnClick() {
-        Beans.CommandMsg.ReqUserClickAction act = new Beans.CommandMsg.ReqUserClickAction();
-        act.clickType = Beans.CommandMsg.ReqUserClickAction.Type.PLAY_BTN.name();
-        addCmdToQue(act,0);
+    public void sendMsg(Beans.TransfPkgMsg msg) {
+        mMsgSenderQue.offer(msg);
     }
 
-    @Override
-    public void sendAccBtnClick() {
-        Beans.CommandMsg.ReqUserClickAction act = new Beans.CommandMsg.ReqUserClickAction();
-        act.clickType = Beans.CommandMsg.ReqUserClickAction.Type.ACC_BTN.name();
-        addCmdToQue(act,0);
-    }
+//    @Override
+//    public void sendPlayBtnClick() {
+//        Beans.TransfPkgMsg.ReqUserClickAction act = new Beans.TransfPkgMsg.ReqUserClickAction();
+//        act.clickType = Beans.TransfPkgMsg.ReqUserClickAction.Type.PLAY_BTN.name();
+//        addCmdToQue(act,0);
+//    }
+//
+//    @Override
+//    public void sendAccBtnClick() {
+//        Beans.TransfPkgMsg.ReqUserClickAction act = new Beans.TransfPkgMsg.ReqUserClickAction();
+//        act.clickType = Beans.TransfPkgMsg.ReqUserClickAction.Type.ACC_BTN.name();
+//        addCmdToQue(act,0);
+//    }
 
     @Override
     public void syncNetTime() {
-        Beans.CommandMsg.ReqSyncTime act = new Beans.CommandMsg.ReqSyncTime();
+        Beans.TransfPkgMsg.ReqSyncTime act = new Beans.TransfPkgMsg.ReqSyncTime();
         act.clientTimeMs = System.currentTimeMillis();
-        addCmdToQue(act,0);
+        addInnerMsgToQue(act,0);
     }
 
     @Override
     public void reportClientInfo(String clientName, long netDelay) {
-        Beans.CommandMsg.ReqReportClientInfo act = new Beans.CommandMsg.ReqReportClientInfo();
+        Beans.TransfPkgMsg.ReqReportClientInfo act = new Beans.TransfPkgMsg.ReqReportClientInfo();
         act.clientName = clientName;
         act.netDelay = netDelay;
-        addCmdToQue(act,0);
+        addInnerMsgToQue(act,0);
     }
 
-    @Override
-    public void getPlayState() {
-        Beans.CommandMsg.ReqCommon act = new Beans.CommandMsg.ReqCommon();
-        act.type = Beans.CommandMsg.ReqCommon.Type.getPlayState.name();
-        addCmdToQue(act,0);
-    }
-
-    @Override
-    public void getAccState() {
-        Beans.CommandMsg.ReqCommon act = new Beans.CommandMsg.ReqCommon();
-        act.type = Beans.CommandMsg.ReqCommon.Type.getAccState.name();
-        addCmdToQue(act,0);    }
+//    @Override
+//    public void getPlayState() {
+//        Beans.TransfPkgMsg.ReqCommon act = new Beans.TransfPkgMsg.ReqCommon();
+//        act.type = Beans.TransfPkgMsg.ReqCommon.Type.getPlayState.name();
+//        addCmdToQue(act,0);
+//    }
+//
+//    @Override
+//    public void getAccState() {
+//        Beans.TransfPkgMsg.ReqCommon act = new Beans.TransfPkgMsg.ReqCommon();
+//        act.type = Beans.TransfPkgMsg.ReqCommon.Type.getAccState.name();
+//        addCmdToQue(act,0);
+//    }
 
     @Override
     public void setClientDataHandler(IClientDataHandler cb) {
@@ -241,7 +249,7 @@ public class TransfClient implements ITransferClient{
         }
 
         @Override
-        public void onGotJsonMsg(Beans.CommandMsg msg, OutputStream ous) {
+        public void onGotJsonMsg(Beans.TransfPkgMsg msg, OutputStream ous) {
             // cmd
             Log.i(TAG, "onGotJsonMsg: msg:"+msg);
             mClientDataHandler.onGotCmdData(msg);
@@ -261,17 +269,25 @@ public class TransfClient implements ITransferClient{
 
     };
 
-    private void addCmdToQue(Object msg, int target) {
-        if(msg instanceof Beans.CommandMsg) throw new RuntimeException(" sendObjectCmd msg should not be CommandMsg.class");
+    private void addInnerMsgToQue(Object msg, int target) {
+        if(msg instanceof Beans.TransfPkgMsg) throw new RuntimeException(" sendObjectCmd msg should not be CommandMsg.class");
         if(mSocOus == null){
             Log.i(TAG, "addCmdToQue: mSocOus is null, return! ");
             return;
         }
-        Beans.CommandMsg destMsg = Beans.CommandMsg.Builder.genP2PMsg(msg,target);
+
+        String dest = CodecUtil.encodeMsg(msg);
+        HashSet<String> ts = new HashSet<>();
+        addMsgToQue(dest,ts,false);
+    }
+
+    private void addMsgToQue(String msgStr,HashSet<String> targets,boolean outerMsg){
+        Beans.TransfPkgMsg destMsg = Beans.TransfPkgMsg.Builder.genSpecTargetsMsg(msgStr,targets,outerMsg?0:1);
         mMsgSenderQue.offer(destMsg);
     }
 
-    ArrayBlockingQueue<Beans.CommandMsg> mMsgSenderQue = new ArrayBlockingQueue<>(100);
+
+    ArrayBlockingQueue<Beans.TransfPkgMsg> mMsgSenderQue = new ArrayBlockingQueue<>(100);
     class MsgSenderThread extends Thread{
 
         boolean mExit = false;
@@ -283,7 +299,7 @@ public class TransfClient implements ITransferClient{
         public void run() {
             super.run();
             while (!mExit){
-                Beans.CommandMsg msg = null;
+                Beans.TransfPkgMsg msg = null;
                 try {
                     msg = mMsgSenderQue.poll(100, TimeUnit.SECONDS);
                 } catch (InterruptedException e) {

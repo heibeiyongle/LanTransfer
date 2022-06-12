@@ -6,6 +6,7 @@ import android.net.nsd.NsdServiceInfo;
 import android.util.Log;
 
 
+import com.thunder.common.lib.bean.CommonDef;
 import com.thunder.common.lib.dto.Beans;
 import com.thunder.common.lib.transf.SocketDealer;
 
@@ -15,7 +16,6 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -30,8 +30,12 @@ class TransferServer implements ITransfServer {
     IClientMsgDealer mClientMsgDealer;
     private List<ClientSession> mOusClients = new ArrayList<>();
 
+    public String getServerTargetName(){
+        return CommonDef.serverTargetName;
+    }
+
     class ClientSession {
-        int clientId; // auto inCrease
+        String clientId; // auto inCrease
         String name;
         String ip;
         long connectTimeMs; // net time ms
@@ -164,8 +168,8 @@ class TransferServer implements ITransfServer {
                 }
                 if(tmpData instanceof Beans.VideoData){
                     publishVideo((Beans.VideoData) tmpData);
-                }else if(tmpData instanceof Beans.CommandMsg){
-                    publishCmd((Beans.CommandMsg) tmpData);
+                }else if(tmpData instanceof Beans.TransfPkgMsg){
+                    publishCmd((Beans.TransfPkgMsg) tmpData);
                 }
             }
         }
@@ -199,15 +203,15 @@ class TransferServer implements ITransfServer {
         }
     }
 
-    private void publishCmd(Beans.CommandMsg commandMsg){
-        Log.d(TAG, " ---> publishCmd clientCount: "+mOusClients.size()+" commandMsg = [" + commandMsg + "]");
+    private void publishCmd(Beans.TransfPkgMsg transfPkgMsg){
+        Log.d(TAG, " ---> publishCmd clientCount: "+mOusClients.size()+" commandMsg = [" + transfPkgMsg + "]");
         for (int i = 0; i < mOusClients.size(); i++) {
             try {
                 ClientSession tmpClient = mOusClients.get(i);
                 if(tmpClient.isActive){
-                    if(commandMsg.targets == null /* broadcast */
-                            || commandMsg.targets.contains(tmpClient.clientId) /* p2p */){
-                        SocketDealer.sendCmdMsg(tmpClient.mOus,commandMsg);
+                    if(transfPkgMsg.targets == null /* broadcast */
+                            || transfPkgMsg.targets.contains(tmpClient.clientId) /* p2p */){
+                        SocketDealer.sendCmdMsg(tmpClient.mOus, transfPkgMsg);
                     }
                 }
                 //todo timeout deal
@@ -218,8 +222,8 @@ class TransferServer implements ITransfServer {
     }
 
     private int mClientIdSeed = 1; // client index start
-    private int genClientID(){
-        return ++mClientIdSeed;
+    private String genClientID(){
+        return ++mClientIdSeed+"";
     }
 
     SocketDealer.ISocDealCallBack clientSocDataHandler = new SocketDealer.ISocDealCallBack() {
@@ -255,14 +259,14 @@ class TransferServer implements ITransfServer {
         }
 
         @Override
-        public void onGotJsonMsg(Beans.CommandMsg msg, OutputStream ous) {
+        public void onGotJsonMsg(Beans.TransfPkgMsg msg, OutputStream ous) {
             // open or stop channel
             Log.i(TAG, "onGotJsonMsg: msg:"+msg);
             dealJsonMsg(msg,ous);
         }
     };
 
-    private void dealJsonMsg(Beans.CommandMsg msg, OutputStream srcOus){
+    private void dealJsonMsg(Beans.TransfPkgMsg msg, OutputStream srcOus){
         ClientSession client = findClient(srcOus);
         if(client == null){
             Log.i(TAG, "dealJsonMsg: client not found !!!! msg: "+msg);

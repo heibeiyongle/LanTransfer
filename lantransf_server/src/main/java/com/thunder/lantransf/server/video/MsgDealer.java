@@ -6,11 +6,13 @@ import android.util.Log;
 import com.google.gson.internal.LinkedTreeMap;
 import com.thunder.common.lib.dto.Beans;
 import com.thunder.common.lib.util.GsonUtils;
+import com.thunder.lantransf.msg.TransfMsgWrapper;
+import com.thunder.lantransf.msg.codec.CodecUtil;
 
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
-public class MsgDealer implements ITransfServer.IClientMsgDealer, IMsgSender {
+public class MsgDealer implements ITransfServer.IClientMsgDealer, IMsgSender,IOuterMsgRec {
 
     ITransfServer mPublisher;
     public MsgDealer(){
@@ -27,9 +29,15 @@ public class MsgDealer implements ITransfServer.IClientMsgDealer, IMsgSender {
 
 
     @Override
-    public void onGotCmd(Beans.CommandMsg msg, TransferServer.ClientSession session) {
+    public void onGotCmd(Beans.TransfPkgMsg msg, TransferServer.ClientSession session) {
         if(msg != null && session != null){
-            dealCmdMsg(msg,session);
+            if(msg.isInnerCmdMsg()){
+                // inner
+                dealInnerCmdMsg(msg,session);
+            }else {
+                // outer
+                dealOuterCmdMsg(msg,session);
+            }
         }
     }
 
@@ -41,7 +49,7 @@ public class MsgDealer implements ITransfServer.IClientMsgDealer, IMsgSender {
     private ArrayBlockingQueue<Object> mOutQue;
 
     @Override
-    public void sendCmd(Beans.CommandMsg msg) {
+    public void sendCmd(Beans.TransfPkgMsg msg) {
         if(mOutQue != null){
             try {
                 mOutQue.offer(msg,100, TimeUnit.MILLISECONDS);
@@ -51,61 +59,81 @@ public class MsgDealer implements ITransfServer.IClientMsgDealer, IMsgSender {
         }
     }
 
-    private static final String TAG = "MsgDealer";
-    private void dealCmdMsg(Beans.CommandMsg msg, TransferServer.ClientSession session){
-        Log.d(TAG, "dealCmdMsg() called with: msg = [" + msg + "], session = [" + session + "]");
-        // switch
-        String msgType = msg.getType();
-        if(Beans.CommandMsg.VideoChannelState.class.getSimpleName().equals(msgType)){
-            Beans.CommandMsg.VideoChannelState chatMsg = GsonUtils.parseFromLinkedTreeMap(
-                    (LinkedTreeMap) msg.getBody(), Beans.CommandMsg.VideoChannelState.class);
-            if(chatMsg != null){
-                session.isActive = chatMsg.active;
-                session.isSendCfg = false;
-            }
-        }else if(Beans.CommandMsg.ReqSyncTime.class.getSimpleName().equals(msgType)){
-            Beans.CommandMsg.ReqSyncTime tmpMsg = GsonUtils.parseFromLinkedTreeMap(
-                    (LinkedTreeMap) msg.getBody(), Beans.CommandMsg.ReqSyncTime.class);
-            Beans.CommandMsg.ResSyncTime res = new Beans.CommandMsg.ResSyncTime();
-            res.serverTimeMs = System.currentTimeMillis();
-            res.req = tmpMsg;
-            sendObjectCmd(res,session.clientId);
-        }else if(Beans.CommandMsg.ReqReportClientInfo.class.getSimpleName().equals(msgType)){
-            Beans.CommandMsg.ReqReportClientInfo tmpMsg = GsonUtils.parseFromLinkedTreeMap(
-                    (LinkedTreeMap) msg.getBody(), Beans.CommandMsg.ReqReportClientInfo.class);
-            mPublisher.updateClientSessionInfo(session.mOus,tmpMsg.clientName,tmpMsg.netDelay);
-        }else if(Beans.CommandMsg.ReqCommon.class.getSimpleName().equals(msgType)){
-            Beans.CommandMsg.ReqCommon tmpMsg = GsonUtils.parseFromLinkedTreeMap(
-                    (LinkedTreeMap) msg.getBody(), Beans.CommandMsg.ReqCommon.class);
 
-//            if(Beans.CommandMsg.ReqCommon.Type.getPlayState.name().equals(tmpMsg.type)){
-//                // getState
-//                Beans.CommandMsg.ResPlayState res = new Beans.CommandMsg.ResPlayState();
-//                res.playing = !ServiceManager.getSongOrderService().isPaused();
-//                sendObjectCmd(res,session.clientId);
-//            }else if(Beans.CommandMsg.ReqCommon.Type.getAccState.name().equals(tmpMsg.type)){
-//                Beans.CommandMsg.ResAccState res = new Beans.CommandMsg.ResAccState();
-//                res.accType = ServiceManager.getSongOrderService().isAcc()? 1:0;
-//                sendObjectCmd(res,session.clientId);
-//            }
-        }else if(Beans.CommandMsg.ReqUserClickAction.class.getSimpleName().equals(msgType)){
-            Beans.CommandMsg.ReqUserClickAction tmpMsg = GsonUtils.parseFromLinkedTreeMap(
-                    (LinkedTreeMap) msg.getBody(), Beans.CommandMsg.ReqUserClickAction.class);
-            // perform
-            if(Beans.CommandMsg.ReqUserClickAction.Type.PLAY_BTN.name().equals(tmpMsg.clickType)){
-                onPlayBtnClick();
-            }else if(Beans.CommandMsg.ReqUserClickAction.Type.PLAY_BTN.name().equals(tmpMsg.clickType)){
-                onAccBtnClick();
-            }
+    private static final String TAG = "MsgDealer";
+
+    private void dealInnerCmdMsg(Beans.TransfPkgMsg msg, TransferServer.ClientSession session){
+        Log.d(TAG, "dealCmdMsg() called with: msg = [" + msg + "], session = [" + session + "]");
+        // targets
+        // format type
+        // data
+        if(msg.targets == null){
+            unpackMsg(msg,session);
+            return;
+        }
+        if(msg.targets.contains(mPublisher.getServerTargetName())){
+            unpackMsg(msg,session);
+            msg.targets.remove(mPublisher.getServerTargetName());
+        }
+        if(msg.targets.size() > 0){
+            rerouteMsg(msg);
         }
         Log.d(TAG, "dealCmdMsg() end! ");
     }
 
+    private void unpackMsg(Beans.TransfPkgMsg msg, TransferServer.ClientSession session){
+
+        if(msg.isOriginPayloadBytes()){
+            // todo ,step 2 to support byte[]
+            return;
+        }
+
+        TransfMsgWrapper msgWrapper = CodecUtil.decodeMsg(msg.getStrPayload());
+        String msgType = msgWrapper.getMsgClassName();
+        // switch
+        if(Beans.TransfPkgMsg.VideoChannelState.class.getSimpleName().equals(msgType)){
+            Beans.TransfPkgMsg.VideoChannelState chatMsg = GsonUtils.parseFromLinkedTreeMap(
+                    (LinkedTreeMap) msgWrapper.getMsg(), Beans.TransfPkgMsg.VideoChannelState.class);
+            if(chatMsg != null){
+                session.isActive = chatMsg.active;
+                session.isSendCfg = false;
+            }
+        }else if(Beans.TransfPkgMsg.ReqSyncTime.class.getSimpleName().equals(msgType)){
+            Beans.TransfPkgMsg.ReqSyncTime tmpMsg = GsonUtils.parseFromLinkedTreeMap(
+                    (LinkedTreeMap) msgWrapper.getMsg(), Beans.TransfPkgMsg.ReqSyncTime.class);
+            Beans.TransfPkgMsg.ResSyncTime res = new Beans.TransfPkgMsg.ResSyncTime();
+            res.serverTimeMs = System.currentTimeMillis();
+            res.req = tmpMsg;
+            sendInnerCmd(res,session.clientId);
+        }else if(Beans.TransfPkgMsg.ReqReportClientInfo.class.getSimpleName().equals(msgType)){
+            Beans.TransfPkgMsg.ReqReportClientInfo tmpMsg = GsonUtils.parseFromLinkedTreeMap(
+                    (LinkedTreeMap) msgWrapper.getMsg(), Beans.TransfPkgMsg.ReqReportClientInfo.class);
+            mPublisher.updateClientSessionInfo(session.mOus,tmpMsg.clientName,tmpMsg.netDelay);
+        }
+
+    }
+
+    private void rerouteMsg(Beans.TransfPkgMsg msg){
+        sendCmd(msg);
+    }
 
 
-    private void sendObjectCmd(Object msg,int target) {
-        if(msg instanceof Beans.CommandMsg) throw new RuntimeException(" sendObjectCmd msg should not be CommandMsg.class");
-        Beans.CommandMsg destMsg = Beans.CommandMsg.Builder.genP2PMsg(msg,target);
+    private void dealOuterCmdMsg(Beans.TransfPkgMsg msg, TransferServer.ClientSession session){
+        if(mOutMsgHandler != null){
+            if(msg.isOriginPayloadBytes()){
+                // todo
+            }else {
+                mOutMsgHandler.onGotMsg(msg.getStrPayload(),session.clientId);
+            }
+        }
+    }
+
+
+    private void sendInnerCmd(Object msg,String target) {
+        if(msg instanceof Beans.TransfPkgMsg)
+            throw new RuntimeException(" sendObjectCmd msg should not be CommandMsg.class");
+        String tmp = CodecUtil.encodeMsg(msg);
+        Beans.TransfPkgMsg destMsg = Beans.TransfPkgMsg.Builder.genP2PMsg(tmp,target,1);
         sendCmd(destMsg);
     }
 
@@ -143,5 +171,11 @@ public class MsgDealer implements ITransfServer.IClientMsgDealer, IMsgSender {
 //                .subscribe(s -> {
 //                    ServiceManager.getSongOrderService().toggleTrack();
 //                });
+    }
+
+    IOutMsgHandler mOutMsgHandler = null;
+    @Override
+    public void setOutMsgHandler(IOutMsgHandler handler) {
+        mOutMsgHandler = handler;
     }
 }

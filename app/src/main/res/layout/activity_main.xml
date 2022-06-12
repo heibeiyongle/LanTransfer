@@ -6,25 +6,33 @@
     android:orientation="vertical"
     tools:context=".MainActivity">
 
-    <LinearLayout
+    <FrameLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
-
-        <Button
+        android:layout_height="200dp">
+        <TextView
             android:id="@+id/v_close"
             android:text="X"
             android:padding="5dp"
+            android:background="#f00"
+            android:textColor="#fff"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"/>
-
         <TextView
+            android:layout_marginLeft="40dp"
             android:id="@+id/tv_info"
             android:padding="10dp"
-            android:layout_weight="1"
-            android:layout_width="0dp"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"/>
+        <TextView
+            android:layout_marginLeft="40dp"
+            android:id="@+id/rec_msg_info"
+            android:layout_gravity="bottom"
+            android:gravity="bottom|right"
+            android:textColor="#f00"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"/>
 
-    </LinearLayout>
+    </FrameLayout>
 
     <View
         android:background="#0f0"
@@ -49,7 +57,8 @@
                 android:layout_height="wrap_content"
                 android:layout_gravity="center_horizontal"
                 android:background="#f00"
-                android:padding="20dp"
+                android:padding="10dp"
+                android:textSize="10sp"
                 android:text="Start-server"
                 android:textColor="@color/white" />
 
@@ -60,8 +69,21 @@
                 android:layout_gravity="center_horizontal"
                 android:background="#f00"
                 android:layout_marginTop="20dp"
-                android:padding="20dp"
+                android:padding="10dp"
+                android:textSize="10sp"
                 android:text="Start-publish_video"
+                android:textColor="@color/white" />
+
+            <Button
+                android:id="@+id/tv_send_msg_play_state"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
+                android:background="#f00"
+                android:layout_marginTop="20dp"
+                android:padding="10dp"
+                android:textSize="10sp"
+                android:text="Send_msg_play_state"
                 android:textColor="@color/white" />
 
 
@@ -102,24 +124,50 @@
                     android:layout_height="wrap_content">
 
                     <Button
-                        android:id="@+id/tv_start_client"
+                        android:id="@+id/tv_client_show"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_gravity="center_horizontal"
                         android:background="#f00"
-                        android:padding="20dp"
+                        android:padding="10dp"
+                        android:textSize="10sp"
                         android:text="Show"
                         android:textColor="@color/white" />
 
                     <Button
-                        android:id="@+id/tv_stop_client"
+                        android:id="@+id/tv_client_hidden"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_gravity="center_horizontal"
                         android:layout_marginTop="10dp"
                         android:background="#f00"
-                        android:padding="20dp"
+                        android:padding="10dp"
+                        android:textSize="10sp"
                         android:text="Hide"
+                        android:textColor="@color/white" />
+
+                    <Button
+                        android:id="@+id/tv_client_btnckl"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center_horizontal"
+                        android:layout_marginTop="10dp"
+                        android:background="#f00"
+                        android:padding="10dp"
+                        android:textSize="10sp"
+                        android:text="btn-clk"
+                        android:textColor="@color/white" />
+
+                    <Button
+                        android:id="@+id/tv_client_get_state"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center_horizontal"
+                        android:layout_marginTop="10dp"
+                        android:background="#f00"
+                        android:padding="10dp"
+                        android:textSize="10sp"
+                        android:text="get-server-state"
                         android:textColor="@color/white" />
 
                 </LinearLayout>
@@ -127,54 +175,6 @@
 
             </LinearLayout>
 
-
-            <LinearLayout
-                android:visibility="gone"
-                android:layout_marginTop="10dp"
-                android:background="#fff"
-                android:padding="10dp"
-                android:orientation="horizontal"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content">
-
-                <SurfaceView
-                    android:id="@+id/sv_client2"
-                    android:visibility="invisible"
-                    android:layout_width="0dp"
-                    android:layout_weight="1"
-                    android:layout_height="match_parent"
-                    android:layout_gravity="center" />
-
-                <LinearLayout
-                    android:orientation="vertical"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content">
-
-                    <Button
-                        android:id="@+id/tv_show2"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_gravity="center_horizontal"
-                        android:background="#f00"
-                        android:padding="20dp"
-                        android:text="Show"
-                        android:textColor="@color/white" />
-
-                    <Button
-                        android:id="@+id/tv_hide2"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_gravity="center_horizontal"
-                        android:layout_marginTop="10dp"
-                        android:background="#f00"
-                        android:padding="20dp"
-                        android:text="Hide"
-                        android:textColor="@color/white" />
-
-                </LinearLayout>
-
-
-            </LinearLayout>
 
         </LinearLayout>
 

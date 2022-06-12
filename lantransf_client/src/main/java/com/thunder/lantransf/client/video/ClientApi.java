@@ -4,6 +4,12 @@ import android.content.Context;
 import android.util.Log;
 import android.view.Surface;
 
+import com.thunder.common.lib.dto.Beans;
+import com.thunder.lantransf.msg.TransfMsgWrapper;
+import com.thunder.lantransf.msg.codec.CodecUtil;
+
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -64,6 +70,42 @@ public class ClientApi implements IClientApi{
         mInnerClient.stopShow();
         return true;
     }
+
+    @Override
+    public void sendMsg(List<String> targets, String msg) {
+        HashSet<String> destTarget = null;
+        if(targets != null && targets.size() > 0){
+            destTarget = new HashSet<>();
+            destTarget.addAll(targets);
+        }
+        mInnerClient.sendMsg(Beans.TransfPkgMsg.Builder.genSpecTargetsMsg(msg,destTarget,0));
+    }
+
+    @Override
+    public void sendMsg(List<String> targets, byte[] msg) {
+        //todo
+    }
+
+    IRecMsgHandler mOutMsgHandler = null;
+    @Override
+    public void setMsgHandler(IRecMsgHandler handler) {
+        mOutMsgHandler = handler;
+        mInnerClient.setRecMsgHandler(mTmpRecMsgHandler);
+    }
+
+    IMediaClient.IRecMsgHandler mTmpRecMsgHandler = new IMediaClient.IRecMsgHandler() {
+        @Override
+        public void onGetMsg(Beans.TransfPkgMsg msg) {
+            if(mOutMsgHandler != null){
+                if(msg.isOriginPayloadBytes()){
+                    return; //todo
+                }
+                mOutMsgHandler.onGetMsg(msg.getStrPayload(), "xxx"); // todo spec xxx
+            }
+        }
+    };
+
+
 
     IClientStateChangeCallBack mNotify;
     @Override

@@ -13,8 +13,8 @@ interface IServerManager {
     void stopPublishMedia();
     List<String> getClientList();
 
-    void publishPlayState(boolean play);
-    void publishAccState(int acc);
+//    void publishPlayState(boolean play);
+//    void publishAccState(int acc);
 
     void setServerStateCB(IServerStateCallBack cb);
     void setMediaServerStateCB(IMediaServerStateCallBack cb);

@@ -162,20 +162,20 @@ class ServerManager implements IServerManager{
         return res;
     }
 
-    @Override
-    public void publishPlayState(boolean play) {
-        Beans.CommandMsg.ResPlayState playState = new Beans.CommandMsg.ResPlayState();
-        playState.playing = play;
-        mMsgDealer.sendCmd(genPublishMsg(playState));
-    }
-
-    @Override
-    public void publishAccState(int acc) {
-        Beans.CommandMsg.ResAccState accState = new Beans.CommandMsg.ResAccState();
-        accState.accType = acc;
-        mMsgDealer.sendCmd(genPublishMsg(accState));
-    }
-
+//    @Override
+//    public void publishPlayState(boolean play) {
+//        Beans.TransfPkgMsg.ResPlayState playState = new Beans.TransfPkgMsg.ResPlayState();
+//        playState.playing = play;
+//        mMsgDealer.sendCmd(genPublishMsg(playState));
+//    }
+//
+//    @Override
+//    public void publishAccState(int acc) {
+//        Beans.TransfPkgMsg.ResAccState accState = new Beans.TransfPkgMsg.ResAccState();
+//        accState.accType = acc;
+//        mMsgDealer.sendCmd(genPublishMsg(accState));
+//    }
+//
 
     IServerStateCallBack mServerStateCB = null;
     @Override
@@ -195,12 +195,18 @@ class ServerManager implements IServerManager{
         mTransfServer.setMsgDealer(mMsgDealer);
     }
 
-    private Beans.CommandMsg genPublishMsg(Object content){
-        if(content instanceof Beans.CommandMsg)
-            throw new RuntimeException(" genPublishMsg param should not be CommandMsg.class !");
-        Beans.CommandMsg destMsg = Beans.CommandMsg.Builder.genBroadCastMsg(content);
-        return destMsg;
+    IOuterMsgRec.IOutMsgHandler mOutHandler = null;
+    public void setOutMsgHandler(IOuterMsgRec.IOutMsgHandler receiver){
+        mOutHandler = receiver;
+        mMsgDealer.setOutMsgHandler(mOutHandler);
     }
+
+//    private Beans.TransfPkgMsg genPublishMsg(Object content){
+//        if(content instanceof Beans.TransfPkgMsg)
+//            throw new RuntimeException(" genPublishMsg param should not be CommandMsg.class !");
+//        Beans.TransfPkgMsg destMsg = Beans.TransfPkgMsg.Builder.genBroadCastMsg(content);
+//        return destMsg;
+//    }
 
 
 
