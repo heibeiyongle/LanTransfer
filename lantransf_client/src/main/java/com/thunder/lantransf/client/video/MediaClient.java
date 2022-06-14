@@ -16,6 +16,7 @@ import com.thunder.lantransf.msg.TransfMsgWrapper;
 import com.thunder.lantransf.msg.codec.CodecUtil;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
@@ -202,21 +203,6 @@ class MediaClient implements IMediaClient{
 
         }
 
-//        else if(Beans.TransfPkgMsg.ResAccState.class.getSimpleName().equals(msg.getType())){
-//            Beans.TransfPkgMsg.ResAccState tmpMsg = GsonUtils.parseFromLinkedTreeMap(
-//                    (LinkedTreeMap) msgWrapper.getMsg(), Beans.TransfPkgMsg.ResAccState.class);
-//            if(mNotify != null && tmpMsg != null){
-//                mNotify.onAccStateChanged(tmpMsg.accType);
-//            }
-//        }else if(Beans.TransfPkgMsg.ResPlayState.class.getSimpleName().equals(msg.getType())){
-//            Beans.TransfPkgMsg.ResPlayState tmpMsg = GsonUtils.parseFromLinkedTreeMap(
-//                    (LinkedTreeMap) msgWrapper.getMsg(), Beans.TransfPkgMsg.ResPlayState.class);
-//            if(mNotify != null && tmpMsg != null){
-//                mNotify.onPlayStateChanged(tmpMsg.playing);
-//            }
-//        }
-
-
     }
 
     NetTimeInfo mNetTimeInfo = null;
@@ -261,6 +247,13 @@ class MediaClient implements IMediaClient{
             Beans.VideoData firstFrame = null;
             while (!mExit){
                 firstFrame = getVideoData(5000);
+                if(firstFrame == null){
+                    continue;
+                }
+                if(!firstFrame.isConfigFrame){
+                    Log.i(TAG, " frame Not-cfg , ignore! ");
+                    continue;
+                }
                 if (firstFrame != null) {
                     Log.i(TAG, " on got Video-Data! ");
                     break;
@@ -313,11 +306,16 @@ class MediaClient implements IMediaClient{
                             byteBuffer.clear();
                             if (firstFrame != null) {
 //                                out.write(firstFrame.h264Data);
+                                Log.d(TAG, " custom the first Frame: "+firstFrame);
                                 byteBuffer.put(firstFrame.h264Data);
                                 checkVideoFrameTime(firstFrame);
                                 firstFrame = null;
                             } else {
                                 Beans.VideoData videoData = getVideoData(3);
+//                                Log.i(TAG, " videoData: "+videoData);
+//                                if(videoData.h264Data.length == 8){
+//                                    Log.i(TAG, " 8-bytes: "+ convertHexStr(videoData.h264Data));
+//                                }
                                 if (videoData != null) {
 //                                    Log.i(TAG, " decode h264: 0-100 "+ Arrays.toString(Arrays.copyOfRange(videoData.h264Data,0,100)));
 //                                    Log.i(TAG, " decode h264: -100-end"+ Arrays.toString(
@@ -480,7 +478,26 @@ class MediaClient implements IMediaClient{
 
 
 
+    public static String convertHexStr(byte[] data){
+        return convertHexStr(data,true);
+    }
 
+    public static String convertHexStr(byte[] data,boolean ifBlankGap){
+        if(data == null){
+            return "";
+        }
+        StringBuilder sb = new StringBuilder();
+        for(int i=0; i < data.length; i ++){
+            String hex = Integer.toHexString( data[i] & 0x00ff);
+            hex = hex.length() == 1 ? "0"+hex:hex;
+            sb.append(hex);
+            if(ifBlankGap){
+                sb.append(" ");
+            }
+        }
+
+        return sb.toString().toUpperCase();
+    }
 
 
 

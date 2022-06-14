@@ -10,6 +10,8 @@ import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.View;
+import android.widget.FrameLayout;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import com.google.gson.internal.LinkedTreeMap;
@@ -107,7 +109,7 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.tv_start_server).setOnClickListener(clk);
         findViewById(R.id.tv_start_publish_video).setOnClickListener(clk);
         findViewById(R.id.tv_send_msg_play_state).setOnClickListener(clk);
-
+        mSvBox = findViewById(R.id.fl_sv_box);
         mSvClient1 = findViewById(R.id.sv_client);
         findViewById(R.id.tv_client_show).setOnClickListener(clk);
         findViewById(R.id.tv_client_hidden).setOnClickListener(clk);
@@ -274,6 +276,7 @@ public class MainActivity extends AppCompatActivity {
 //========================================================================================
 //========================================================================================
 
+    View mSvBox = null;
 
     ClientApi clientApi1;
     private void initClient1(){
@@ -384,6 +387,34 @@ public class MainActivity extends AppCompatActivity {
             Log.d(TAG, "onVideoStart() called");
             mClientInfo.videoState = "onVideoStart";
             updateInfo();
+            mHandler.post(new Runnable() {
+                @Override
+                public void run() {
+                    int boxW =mSvBox.getWidth();
+                    int boxH =mSvBox.getHeight();
+                    int maxW = 0;
+                    int maxH = 0;
+                    if(boxW*1f/boxH > 400f/300){ // w / h
+                        maxH = boxH;
+                    }else {
+                        maxW = boxW;
+                    }
+
+                    int destW = 0;
+                    int destH = 0;
+                    if(maxW > 0){
+                        destW = maxW;
+                        destH = (int) (300f/400*destW);
+                    }else {
+                        destH = maxH;
+                        destW = (int) (400f/300*destH);
+                    }
+                    FrameLayout.LayoutParams llp = (FrameLayout.LayoutParams) mSvClient1.getLayoutParams();
+                    llp.width = destW;
+                    llp.height = destH;
+                    mSvClient1.setLayoutParams(llp);
+                }
+            });
         }
 
         @Override
@@ -391,6 +422,15 @@ public class MainActivity extends AppCompatActivity {
             Log.d(TAG, "onVideoStop() called");
             mClientInfo.videoState = "onVideoStop";
             updateInfo();
+            mHandler.post(new Runnable() {
+                @Override
+                public void run() {
+                    FrameLayout.LayoutParams llp = (FrameLayout.LayoutParams) mSvClient1.getLayoutParams();
+                    llp.width = 1;
+                    llp.height = 1;
+                    mSvClient1.setLayoutParams(llp);
+                }
+            });
         }
     };
 }

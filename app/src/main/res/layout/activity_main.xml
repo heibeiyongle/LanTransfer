@@ -97,29 +97,30 @@
         <LinearLayout
             android:background="#f00"
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
+            android:layout_height="match_parent"
             android:layout_weight="3"
             android:orientation="vertical"
             android:padding="10dp">
 
-            <LinearLayout
+            <FrameLayout
+                android:id="@+id/fl_sv_box"
                 android:background="#fff"
                 android:padding="10dp"
                 android:orientation="horizontal"
+                android:gravity="right"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content">
-
+                android:layout_height="match_parent">
                 <SurfaceView
                     android:id="@+id/sv_client"
                     android:visibility="invisible"
-                    android:layout_width="0dp"
-                    android:layout_weight="1"
-                    android:layout_height="match_parent"
+                    android:layout_width="1dp"
+                    android:layout_height="1dp"
                     android:layout_gravity="center" />
-
                 <LinearLayout
                     android:layout_marginLeft="5dp"
                     android:orientation="vertical"
+                    android:gravity="left"
+                    android:layout_gravity="right"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content">
 
@@ -127,9 +128,8 @@
                         android:id="@+id/tv_client_show"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_gravity="center_horizontal"
                         android:background="#f00"
-                        android:padding="10dp"
+                        android:padding="5dp"
                         android:textSize="10sp"
                         android:text="Show"
                         android:textColor="@color/white" />
@@ -138,8 +138,7 @@
                         android:id="@+id/tv_client_hidden"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_gravity="center_horizontal"
-                        android:layout_marginTop="10dp"
+                        android:layout_marginTop="5dp"
                         android:background="#f00"
                         android:padding="10dp"
                         android:textSize="10sp"
@@ -150,8 +149,7 @@
                         android:id="@+id/tv_client_btnckl"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_gravity="center_horizontal"
-                        android:layout_marginTop="10dp"
+                        android:layout_marginTop="5dp"
                         android:background="#f00"
                         android:padding="10dp"
                         android:textSize="10sp"
@@ -162,8 +160,7 @@
                         android:id="@+id/tv_client_get_state"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_gravity="center_horizontal"
-                        android:layout_marginTop="10dp"
+                        android:layout_marginTop="5dp"
                         android:background="#f00"
                         android:padding="10dp"
                         android:textSize="10sp"
@@ -173,7 +170,7 @@
                 </LinearLayout>
 
 
-            </LinearLayout>
+            </FrameLayout>
 
 
         </LinearLayout>

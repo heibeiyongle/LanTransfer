@@ -217,6 +217,13 @@ public class VideoDecoder {
         @Override
         public void run() {
             try {
+
+                byte[] firstFrame = new byte[28];
+                mIns.read(firstFrame);
+                Log.i(TAG, "ffData: "+convertHexStr(firstFrame));
+                Beans.VideoData firstTmpDataObj = new Beans.VideoData(true,false,1024,768, firstFrame);
+                mInnerFramesObj.put(firstTmpDataObj);
+
                 byte[] headFlag = new byte[4];
                 mIns.read(headFlag);
                 int checkFlagIndex = 0;
@@ -230,9 +237,12 @@ public class VideoDecoder {
                 int fps = 0;
 
                 byte[] readed = new byte[1024 * 4096];
-                boolean isFirstFrame = true;
+//                boolean isFirstFrame = true;
 
-                int readFrameSize = 0;
+
+
+
+                int frameIndex = 0;
                 Object lock= new Object();
                 while (true) {
                     long last = System.currentTimeMillis();
@@ -242,7 +252,7 @@ public class VideoDecoder {
                         mIns.close();
                         mIns = new FileInputStream(new File(H264_FILE_PATH));
                         mIns.read(headFlag);
-                        isFirstFrame = true;
+//                        isFirstFrame = true;
                         Log.i(TAG," run =================== END FILE, CONTINUE ");
                         continue;
                     }
@@ -274,10 +284,14 @@ public class VideoDecoder {
                             }
                             if(mInnerFramesObj != null){
                                 //todo 确认config frame
-                                Beans.VideoData tmpDataObj = new Beans.VideoData(isFirstFrame,false,1024,768, rs);
+                                Beans.VideoData tmpDataObj = new Beans.VideoData(false,false,1024,768, rs);
                                 mInnerFramesObj.put(tmpDataObj);
-//                                Log.i(TAG, "run: read file frame ---- size: "+ readFrameSize++);
-                                isFirstFrame = false;
+//                                if(isFirstFrame){
+//                                    Log.i(TAG, " FirstFrame: "+tmpDataObj+", ---frameIndex: "+frameIndex);
+//                                }
+                                frameIndex ++;
+//                                Log.i(TAG, "run: read file frame ---- size: "+ frameIndex++);
+//                                isFirstFrame = false;
                                 synchronized (lock){
                                     lock.wait(30);
                                 }
@@ -320,6 +334,30 @@ public class VideoDecoder {
             }
         }
     }
+
+
+
+    public static String convertHexStr(byte[] data){
+        return convertHexStr(data,true);
+    }
+
+    public static String convertHexStr(byte[] data,boolean ifBlankGap){
+        if(data == null){
+            return "";
+        }
+        StringBuilder sb = new StringBuilder();
+        for(int i=0; i < data.length; i ++){
+            String hex = Integer.toHexString( data[i] & 0x00ff);
+            hex = hex.length() == 1 ? "0"+hex:hex;
+            sb.append(hex);
+            if(ifBlankGap){
+                sb.append(" ");
+            }
+        }
+
+        return sb.toString().toUpperCase();
+    }
+
 
 
     @Deprecated
