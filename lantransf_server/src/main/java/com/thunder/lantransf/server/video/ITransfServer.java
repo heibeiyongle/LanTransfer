@@ -28,8 +28,8 @@ interface ITransfServer {
     void stopServer();
     void startPublishMsg();
     ArrayBlockingQueue<Object> getOutputQue();
-    void updateClientSessionInfo(OutputStream clientOus, String name, long netDelay);
-    void setMsgDealer(IClientMsgDealer dealer);
+    void updateClientSessionInfo(String clientName, long netDelay);
+    void setMsgHandler(IClientMsgDealer dealer);
     void setStateCallBack(ITransfServerStateCallBack cb);
     List<String> getClientList();
     String getServerTargetName();

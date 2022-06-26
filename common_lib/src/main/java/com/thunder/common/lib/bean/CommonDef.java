@@ -7,6 +7,9 @@ package com.thunder.common.lib.bean;
  */
 public class CommonDef {
 
+    public static final String NSD_CONTROL_SERVICE_NAME = "LSLanMediaServer";
+    public static final String NSD_SERVICE_TYPE_TCP = "_http._tcp.";
+
     public static final String serverTargetName = "serverTargetName";
 
 }

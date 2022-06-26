@@ -15,7 +15,8 @@ public interface ITransferClient {
     void sendViewActive();
     void sendViewInActive();
     void syncNetTime();
-    void reportClientInfo(String clientName, long netDelay);
+    void reportClientInfo(long netDelay);
+    void updateLocalClientName(String clientName);
 
     void sendMsg(Beans.TransfPkgMsg msg);
 

@@ -95,7 +95,7 @@ public class MsgDealer implements ITransfServer.IClientMsgDealer, IMsgSender,IOu
             Beans.TransfPkgMsg.VideoChannelState chatMsg = GsonUtils.parseFromLinkedTreeMap(
                     (LinkedTreeMap) msgWrapper.getMsg(), Beans.TransfPkgMsg.VideoChannelState.class);
             if(chatMsg != null){
-                session.isActive = chatMsg.active;
+                session.isVideoActive = chatMsg.active;
                 session.isSendCfg = false;
             }
         }else if(Beans.TransfPkgMsg.ReqSyncTime.class.getSimpleName().equals(msgType)){
@@ -108,7 +108,7 @@ public class MsgDealer implements ITransfServer.IClientMsgDealer, IMsgSender,IOu
         }else if(Beans.TransfPkgMsg.ReqReportClientInfo.class.getSimpleName().equals(msgType)){
             Beans.TransfPkgMsg.ReqReportClientInfo tmpMsg = GsonUtils.parseFromLinkedTreeMap(
                     (LinkedTreeMap) msgWrapper.getMsg(), Beans.TransfPkgMsg.ReqReportClientInfo.class);
-            mPublisher.updateClientSessionInfo(session.mOus,tmpMsg.clientName,tmpMsg.netDelay);
+            mPublisher.updateClientSessionInfo(session.clientId,tmpMsg.netDelay);
         }
 
     }

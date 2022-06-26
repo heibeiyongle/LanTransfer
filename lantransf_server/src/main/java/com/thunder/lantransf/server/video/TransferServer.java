@@ -1,31 +1,31 @@
 package com.thunder.lantransf.server.video;
 
+import static com.thunder.common.lib.bean.CommonDef.NSD_CONTROL_SERVICE_NAME;
+import static com.thunder.common.lib.bean.CommonDef.NSD_SERVICE_TYPE_TCP;
+
 import android.content.Context;
 import android.net.nsd.NsdManager;
 import android.net.nsd.NsdServiceInfo;
+import android.text.TextUtils;
 import android.util.Log;
 
 
 import com.thunder.common.lib.bean.CommonDef;
 import com.thunder.common.lib.dto.Beans;
-import com.thunder.common.lib.transf.SocketDealer;
+import com.thunder.lantransf.server.video.socketserver.ISocketServer;
+import com.thunder.lantransf.server.video.socketserver.SocketServerImpl;
 
-import java.io.IOException;
-import java.io.OutputStream;
-import java.net.ServerSocket;
-import java.net.Socket;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 class TransferServer implements ITransfServer {
 
     private static final String TAG = "TransferServer";
-    private static final String NSD_CONTROL_SERVICE_NAME = "LSLanMediaServer";
-    private static final String NSD_SERVICE_TYPE_TCP = "_http._tcp.";
     Context mCtx;
     IClientMsgDealer mClientMsgDealer;
     private List<ClientSession> mOusClients = new ArrayList<>();
@@ -35,26 +35,19 @@ class TransferServer implements ITransfServer {
     }
 
     class ClientSession {
-        String clientId; // auto inCrease
-        String name;
+        String clientId; // gen by server
         String ip;
         long connectTimeMs; // net time ms
         long netDelayMs;
-        boolean isActive;
+        boolean isVideoActive;
         boolean isSendCfg;
-        OutputStream mOus;
 
         @Override
         public boolean equals(Object o) {
             if (this == o) return true;
             if (o == null || getClass() != o.getClass()) return false;
             ClientSession that = (ClientSession) o;
-            return  Objects.equals(mOus, that.mOus);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(mOus );
+            return  Objects.equals(clientId, that.clientId);
         }
 
         @Override
@@ -63,9 +56,8 @@ class TransferServer implements ITransfServer {
                     "clientId=" + clientId +
                     ", ip='" + ip + '\'' +
                     ", connectTimeMs=" + connectTimeMs +
-                    ", isActive=" + isActive +
+                    ", isActive=" + isVideoActive +
                     ", isSendCfg=" + isSendCfg +
-                    ", mOus=" + mOus +
                     '}';
         }
 
@@ -73,21 +65,64 @@ class TransferServer implements ITransfServer {
             return "ClientSession{" +
                     "clientId=" + clientId +
                     ", ip='" + ip + '\'' +
-//                    ", connectTimeMs=" + connectTimeMs +
-//                    ", isActive=" + isActive +
-//                    ", isSendCfg=" + isSendCfg +
-//                    ", mOus=" + mOus +
                     '}';
         }
     }
 
 
+    ISocketServer.IServerSocCb mNewSocketServerSb = new ISocketServer.IServerSocCb() {
+        @Override
+        public void onInitSuc(int port) {
+            Log.i(TAG,"onServerBindSuc port:"+port);
+            if(mStateCb != null){
+                mStateCb.onSocketServerReady();
+            }
+            regNsdServer(port,mRegL);
+            startPublishMsg();
+        }
+
+        @Override
+        public void onStopped() {
+            mStateCb.onSocketServerStopped();
+        }
+
+        @Override
+        public void onGotClient(String clientName, String remoteHost) {
+            // onGotClient
+            ClientSession session = new ClientSession();
+            session.isVideoActive = false;
+            session.clientId = clientName;
+            session.connectTimeMs = System.currentTimeMillis();
+            session.ip = remoteHost;
+            Log.i(TAG, "onGotClient: "+session);
+            mOusClients.add(session);
+            if(mStateCb != null){
+                mStateCb.onGotClient(session);
+            }
+        }
+
+        @Override
+        public void onLostClient(String clientName) {
+            ClientSession session = findClient(clientName);
+            Log.i(TAG, "onSocClosed: session: "+ session);
+            mOusClients.remove(session);
+            if(mStateCb != null){
+                mStateCb.onLoseClient(session);
+            }
+        }
+
+        @Override
+        public void onGotCmdMsg(String clientName, Beans.TransfPkgMsg msg) {
+            Log.i(TAG, "onGotJsonMsg: msg:"+msg);
+            dealJsonMsg(msg,clientName);
+        }
+    };
 
     @Override
     public void startTransfServer(Context context) {
         mCtx = context;
         mNsdManager = (NsdManager) mCtx.getSystemService(Context.NSD_SERVICE);
-        initVideoServerSocket(mVideoServerSocketCb);
+        initVideoServerSocket(mNewSocketServerSb);
     }
 
     @Override
@@ -112,16 +147,15 @@ class TransferServer implements ITransfServer {
     }
 
     @Override
-    public void updateClientSessionInfo(OutputStream clientOus, String name, long netDelay) {
-        ClientSession session = findClient(clientOus);
+    public void updateClientSessionInfo(String clientName, long netDelay) {
+        ClientSession session = findClient(clientName);
         if(session != null){
-            session.name = name;
             session.netDelayMs = netDelay;
         }
     }
 
     @Override
-    public void setMsgDealer(IClientMsgDealer dealer) {
+    public void setMsgHandler(IClientMsgDealer dealer) {
         mClientMsgDealer = dealer;
     }
 
@@ -166,6 +200,12 @@ class TransferServer implements ITransfServer {
                     Log.d(TAG, "run() video-null continue! ");
                     continue;
                 }
+
+                if(mSocServer == null){
+                    Log.e(TAG, "run: socketServer is null! return! ");
+                    continue;
+                }
+
                 if(tmpData instanceof Beans.VideoData){
                     publishVideo((Beans.VideoData) tmpData);
                 }else if(tmpData instanceof Beans.TransfPkgMsg){
@@ -184,90 +224,43 @@ class TransferServer implements ITransfServer {
         if(tmp%30 == 0){
             Log.d(TAG, " -----> publishVideo clientCnt: "+mOusClients.size()+" publishVideo-length: "+videoData.getH264Data().length);
         }
+        // gen videoData with targets
+        /*
+        1. check if need cfg
+            insert
+        2. gen targets set into videoData
+         */
+        Set<String> cfgTargets = new HashSet<>();
+        Set<String> normalVideoTargets = new HashSet<>();
+
         for (int i = 0; i < mOusClients.size(); i++) {
-            try {
-                ClientSession tmpClient = mOusClients.get(i);
-                if(tmpClient.isActive){
-                    if(!tmpClient.isSendCfg && mVideoConfigData != null){
-                        Log.i(TAG, " TransfServer clientIndex:"+i+" send videoCfg, msg: "+mVideoConfigData);
-                        Log.i(TAG, " --> videoCfg-v-data: "+ Arrays.toString(mVideoConfigData.getH264Data()));
-                        SocketDealer.sendVideoMsg(tmpClient.mOus,mVideoConfigData);
-                        tmpClient.isSendCfg = true;
-                    }
-                    SocketDealer.sendVideoMsg(tmpClient.mOus,videoData);
+            ClientSession tmpClient = mOusClients.get(i);
+            if(tmpClient.isVideoActive) {
+                if (!tmpClient.isSendCfg && mVideoConfigData != null) {
+                    cfgTargets.add(tmpClient.clientId);
+                    tmpClient.isSendCfg = true;
                 }
-                //todo timeout deal
-            }catch (Exception e){
-                e.printStackTrace();
+                normalVideoTargets.add(tmpClient.clientId);
             }
+        }
+        if(cfgTargets.size()>0){
+            mVideoConfigData.setTargets(cfgTargets);
+            mSocServer.publishVideo(mVideoConfigData);
+        }
+        if(normalVideoTargets.size() > 0){
+            videoData.setTargets(normalVideoTargets);
+            mSocServer.publishVideo(videoData);
         }
     }
 
     private void publishCmd(Beans.TransfPkgMsg transfPkgMsg){
         Log.d(TAG, " ---> publishCmd clientCount: "+mOusClients.size()+" commandMsg = [" + transfPkgMsg + "]");
-        for (int i = 0; i < mOusClients.size(); i++) {
-            try {
-                ClientSession tmpClient = mOusClients.get(i);
-                if(tmpClient.isActive){
-                    if(transfPkgMsg.targets == null /* broadcast */
-                            || transfPkgMsg.targets.contains(tmpClient.clientId) /* p2p */){
-                        SocketDealer.sendCmdMsg(tmpClient.mOus, transfPkgMsg);
-                    }
-                }
-                //todo timeout deal
-            }catch (Exception e){
-                e.printStackTrace();
-            }
-        }
+        mSocServer.publishMsg(transfPkgMsg);
     }
 
-    private int mClientIdSeed = 1; // client index start
-    private String genClientID(){
-        return ++mClientIdSeed+"";
-    }
 
-    SocketDealer.ISocDealCallBack clientSocDataHandler = new SocketDealer.ISocDealCallBack() {
-
-        @Override
-        public void onGotOus(OutputStream ous, String remoteHost) {
-            ClientSession session = new ClientSession();
-            session.mOus = ous;
-            session.isActive = true;
-            session.clientId = genClientID();
-            session.connectTimeMs = System.currentTimeMillis();
-            session.ip = remoteHost;
-            Log.i(TAG, "onGotClient: "+session);
-            mOusClients.add(session);
-            if(mStateCb != null){
-                mStateCb.onGotClient(session);
-            }
-        }
-
-        @Override
-        public void onSocClosed(Socket socket, OutputStream ous) {
-            ClientSession session = findClient(ous);
-            Log.i(TAG, "onSocClosed: session: "+ session);
-            mOusClients.remove(session);
-            if(mStateCb != null){
-                mStateCb.onLoseClient(session);
-            }
-        }
-
-        @Override
-        public void onGotVideoMsg(Beans.VideoData msg, OutputStream ous) {
-            // nothing
-        }
-
-        @Override
-        public void onGotJsonMsg(Beans.TransfPkgMsg msg, OutputStream ous) {
-            // open or stop channel
-            Log.i(TAG, "onGotJsonMsg: msg:"+msg);
-            dealJsonMsg(msg,ous);
-        }
-    };
-
-    private void dealJsonMsg(Beans.TransfPkgMsg msg, OutputStream srcOus){
-        ClientSession client = findClient(srcOus);
+    private void dealJsonMsg(Beans.TransfPkgMsg msg, String clientName){
+        ClientSession client = findClient(clientName);
         if(client == null){
             Log.i(TAG, "dealJsonMsg: client not found !!!! msg: "+msg);
             return;
@@ -278,14 +271,14 @@ class TransferServer implements ITransfServer {
     }
 
 
-    private ClientSession findClient(OutputStream ous){
-        if(ous == null){
+    private ClientSession findClient(String clientName){
+        if(TextUtils.isEmpty(clientName)){
             return null;
         }
         for (int i = 0; i < mOusClients.size(); i++) {
             try {
                 ClientSession tmp = mOusClients.get(i);
-                if(ous.equals(tmp.mOus)){
+                if(clientName.equals(tmp.clientId)){
                     return tmp;
                 }
             }catch (Exception e){
@@ -295,66 +288,19 @@ class TransferServer implements ITransfServer {
         return null;
     }
 
-
-
-    IServerSocketCallBack mVideoServerSocketCb = new IServerSocketCallBack() {
-        @Override
-        public void onGotClient(Socket socket) {
-            // onGotClient
-            SocketDealer client = new SocketDealer();
-            client.init(socket,clientSocDataHandler);
-            client.begin();
-        }
-
-        @Override
-        public void onServerBindSuc(int port) {
-            Log.i(TAG,"onServerBindSuc port:"+port);
-            if(mStateCb != null){
-                mStateCb.onSocketServerReady();
-            }
-            regNsdServer(port,mRegL);
-        }
-    };
-
-    private void initVideoServerSocket(IServerSocketCallBack scb){
+    ISocketServer mSocServer = null;
+    private void initVideoServerSocket(ISocketServer.IServerSocCb scb){
         Thread thread = new Thread(){
             @Override
             public void run() {
                 super.run();
-                startServerSocket(scb);
+                mSocServer = new SocketServerImpl();
+                mSocServer.startServer(scb);
             }
         };
         thread.start();
     }
 
-    private int startServerSocket(IServerSocketCallBack scb){
-        int port = -1;
-        try {
-            ServerSocket serverSocket = new ServerSocket(0);
-            port = serverSocket.getLocalPort();
-            if(scb != null){
-                scb.onServerBindSuc(port);
-            }
-            Log.i(TAG,"initSocket port:"+port);
-            while (!serverSocket.isClosed()){
-                Socket socket = serverSocket.accept();
-                if(scb != null){
-                    scb.onGotClient(socket);
-                }
-            }
-        } catch (IOException e) {
-            Log.e(TAG,e.getMessage());
-        }
-        return port;
-    }
-
-
-
-
-    private interface IServerSocketCallBack{
-        void onGotClient(Socket socket);
-        void onServerBindSuc(int port);
-    }
 
 
 

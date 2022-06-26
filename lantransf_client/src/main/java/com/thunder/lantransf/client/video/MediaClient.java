@@ -199,9 +199,15 @@ class MediaClient implements IMediaClient{
             Beans.TransfPkgMsg.ResSyncTime tmpMsg = GsonUtils.parseFromLinkedTreeMap(
                     (LinkedTreeMap) msgWrapper.getMsg(), Beans.TransfPkgMsg.ResSyncTime.class);
             dealSyncTimeRes(tmpMsg);
-            mTransfClient.reportClientInfo("xxx",mNetTimeInfo.getTransfCostTime());
-
+            mTransfClient.reportClientInfo(mNetTimeInfo.getTransfCostTime());
+        }else if(Beans.TransfPkgMsg.ResClientInfo.class.getSimpleName().equals(msgType)){
+            // save it
+            // report client info
+            Beans.TransfPkgMsg.ResClientInfo tmpMsg = GsonUtils.parseFromLinkedTreeMap(
+                    (LinkedTreeMap) msgWrapper.getMsg(), Beans.TransfPkgMsg.ResClientInfo.class);
+            mTransfClient.updateLocalClientName(tmpMsg.clientName);
         }
+
 
     }
 

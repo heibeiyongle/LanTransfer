@@ -30,6 +30,38 @@ import java.util.Arrays;
 
 
 public class MainActivity extends AppCompatActivity {
+
+    /**
+     * 1. server 停止后,自动恢复, 同时给出状态回调
+     * 2. server 向client 推送数据, 多个 client 不互相阻塞, 通过nio 监听解决, 可写状态
+     *  a. socket obj:
+     *      read buf
+     *      write msg queue
+     *      write buf
+     *
+     *
+     * 3. 分配clientName
+     * 4. nio 改造 server
+     * 5. msg pack 添加tag-flag
+     *
+     * client
+     * 1. 断开后重连.
+     *      重连上一个地址,
+     *      监听新地址, 发起连接
+     * 2. 从服务端获取clientName
+     * 3. 连接速率提高
+     * 4. nio 改造
+     * 5. 视频防止黑屏
+     *
+     *
+     *  common
+     *  1. h264 frame 类型检测util
+     *  2.
+     *
+     *
+     */
+
+
     private static final String TAG = "MainActivity";
     SurfaceView mSvClient1;
     TextView mTvInfo;

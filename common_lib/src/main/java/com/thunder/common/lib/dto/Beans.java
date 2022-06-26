@@ -12,6 +12,7 @@ import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.Set;
 
 public class Beans {
 
@@ -20,8 +21,14 @@ public class Beans {
         Video
     }
 
+    public interface ITransferPkg{
+        void setTargets(Set<String> targets);
+        Set<String> getTargets();
+    }
 
-    public static class VideoData{
+    public static class VideoData implements ITransferPkg{
+        Set<String> targets;
+
         private int head_len = 4+1+1+4+4+8;
         public boolean isConfigFrame;
         public boolean keyFrame;
@@ -51,6 +58,15 @@ public class Beans {
             h = SocketDealer.genInt(Arrays.copyOfRange(data,10+offSet,14+offSet));
             frameTimeMs = SocketDealer.genLong(Arrays.copyOfRange(data,14+offSet,22+offSet));
             h264Data = Arrays.copyOfRange(data,head_len+offSet,dataLen);
+        }
+
+        @Override
+        public Set<String> getTargets() {
+            return targets;
+        }
+
+        public void setTargets(Set<String> targets){
+            this.targets = targets;
         }
 
         public byte[] toBytes(){
@@ -91,7 +107,7 @@ public class Beans {
 
     }
 
-    public static class TransfPkgMsg {
+    public static class TransfPkgMsg implements ITransferPkg {
         // null 广播消息,except self.
         // [0] server handle
         // [x1], [x2] x1 x2
@@ -100,7 +116,7 @@ public class Beans {
             server: null for broadCast, [x1,x2] for dest-x1 dest-x2
             client: x1, x2, s1 ...
          */
-        public HashSet<String> targets;
+        public Set<String> targets;
 
         private int formatType; // 0 string 1 byte[]
         private byte[] payload;
@@ -146,6 +162,16 @@ public class Beans {
                 e.printStackTrace();
             }
             return tmpStr;
+        }
+
+        @Override
+        public void setTargets(Set<String> targets) {
+            this.targets = targets;
+        }
+
+        @Override
+        public Set<String> getTargets() {
+            return targets;
         }
 
         @Keep
@@ -224,6 +250,17 @@ public class Beans {
                 return "ResSyncTime{" +
                         "req=" + req +
                         ", serverTimeMs=" + serverTimeMs +
+                        '}';
+            }
+        }
+
+        public static class ResClientInfo{
+            public String clientName;
+
+            @Override
+            public String toString() {
+                return "resClientInfo{" +
+                        "clientName='" + clientName + '\'' +
                         '}';
             }
         }

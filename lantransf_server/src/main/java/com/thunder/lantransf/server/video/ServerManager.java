@@ -3,8 +3,6 @@ package com.thunder.lantransf.server.video;
 import android.content.Context;
 import android.util.Log;
 
-import com.thunder.common.lib.dto.Beans;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -119,7 +117,7 @@ class ServerManager implements IServerManager{
         mTransfServer = new TransferServer();
         mTransfServer.setStateCallBack(mTransfServerCB);
         mTransfServer.startTransfServer(mCtx);
-        mTransfServer.startPublishMsg();
+//        mTransfServer.startPublishMsg();
         initClientMsgDealer();
     }
 
@@ -192,7 +190,7 @@ class ServerManager implements IServerManager{
     MsgDealer mMsgDealer = new MsgDealer();
     private void initClientMsgDealer(){
         mMsgDealer.setPublisher(mTransfServer);
-        mTransfServer.setMsgDealer(mMsgDealer);
+        mTransfServer.setMsgHandler(mMsgDealer);
     }
 
     IOuterMsgRec.IOutMsgHandler mOutHandler = null;

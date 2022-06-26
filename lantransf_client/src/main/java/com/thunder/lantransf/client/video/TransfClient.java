@@ -1,21 +1,19 @@
 package com.thunder.lantransf.client.video;
 
+import static com.thunder.common.lib.bean.CommonDef.NSD_CONTROL_SERVICE_NAME;
+import static com.thunder.common.lib.bean.CommonDef.NSD_SERVICE_TYPE_TCP;
+
 import android.content.Context;
 import android.net.nsd.NsdManager;
 import android.net.nsd.NsdServiceInfo;
 import android.util.Log;
 
 import com.thunder.common.lib.dto.Beans;
-import com.thunder.common.lib.transf.ITransf;
-import com.thunder.common.lib.transf.SocketDealer;
+import com.thunder.lantransf.client.video.socketclient.ISocketClient;
+import com.thunder.lantransf.client.video.socketclient.ClientSocketImpl;
 import com.thunder.lantransf.msg.codec.CodecUtil;
 
-import java.io.IOException;
-import java.io.OutputStream;
-import java.net.Socket;
 import java.util.HashSet;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Created by zhe on 2022/3/19 23:39
@@ -25,9 +23,6 @@ import java.util.concurrent.TimeUnit;
 public class TransfClient implements ITransferClient{
 
     private static final String TAG = "TransfClient";
-
-    private static final String NSD_CONTROL_SERVICE_NAME = "LSLanMediaServer";
-    private static final String NSD_SERVICE_TYPE_TCP = "_http._tcp.";
 
 
     Context mCtx;
@@ -55,7 +50,7 @@ public class TransfClient implements ITransferClient{
 
     @Override
     public void connectServer() {
-        if(mSocOus != null){
+        if(mIsConnected){
             Log.i(TAG, "connectServer: soc already connected ! return!");
             return;
         }
@@ -83,22 +78,10 @@ public class TransfClient implements ITransferClient{
 
     @Override
     public void sendMsg(Beans.TransfPkgMsg msg) {
-        mMsgSenderQue.offer(msg);
+        if(mSocketClient != null){
+            mSocketClient.sendMsg(msg);
+        }
     }
-
-//    @Override
-//    public void sendPlayBtnClick() {
-//        Beans.TransfPkgMsg.ReqUserClickAction act = new Beans.TransfPkgMsg.ReqUserClickAction();
-//        act.clickType = Beans.TransfPkgMsg.ReqUserClickAction.Type.PLAY_BTN.name();
-//        addCmdToQue(act,0);
-//    }
-//
-//    @Override
-//    public void sendAccBtnClick() {
-//        Beans.TransfPkgMsg.ReqUserClickAction act = new Beans.TransfPkgMsg.ReqUserClickAction();
-//        act.clickType = Beans.TransfPkgMsg.ReqUserClickAction.Type.ACC_BTN.name();
-//        addCmdToQue(act,0);
-//    }
 
     @Override
     public void syncNetTime() {
@@ -108,26 +91,18 @@ public class TransfClient implements ITransferClient{
     }
 
     @Override
-    public void reportClientInfo(String clientName, long netDelay) {
+    public void reportClientInfo(long netDelay) {
         Beans.TransfPkgMsg.ReqReportClientInfo act = new Beans.TransfPkgMsg.ReqReportClientInfo();
-        act.clientName = clientName;
         act.netDelay = netDelay;
         addInnerMsgToQue(act,0);
     }
 
-//    @Override
-//    public void getPlayState() {
-//        Beans.TransfPkgMsg.ReqCommon act = new Beans.TransfPkgMsg.ReqCommon();
-//        act.type = Beans.TransfPkgMsg.ReqCommon.Type.getPlayState.name();
-//        addCmdToQue(act,0);
-//    }
-//
-//    @Override
-//    public void getAccState() {
-//        Beans.TransfPkgMsg.ReqCommon act = new Beans.TransfPkgMsg.ReqCommon();
-//        act.type = Beans.TransfPkgMsg.ReqCommon.Type.getAccState.name();
-//        addCmdToQue(act,0);
-//    }
+    @Override
+    public void updateLocalClientName(String clientName) {
+        if(mSocketClient != null){
+            mSocketClient.updateClientInfo(clientName);
+        }
+    }
 
     @Override
     public void setClientDataHandler(IClientDataHandler cb) {
@@ -209,70 +184,60 @@ public class TransfClient implements ITransferClient{
             int port =serviceInfo.getPort();
             mServerHost = host;
             mClientStateHandler.onGotServerInfo();
-            innerConnectSocket(host,port);
+            if(!mIsConnected){
+                innerConnectSocket(host,port);
+            }else {
+                Log.i(TAG, "onServiceResolved , but socket is connected, ignore! host: "+host);
+            }
         }
     };
 
-    SocketDealer mClient = null;
-    OutputStream mSocOus = null;
-    MsgSenderThread mMsgSenderT = null;
+    private boolean mIsConnected = false;
+    ISocketClient.IClientSocCb mInnerClientCb = new ISocketClient.IClientSocCb() {
+        @Override
+        public void onConnectSuc(String remoteHost) {
+            mIsConnected = true;
+            mClientStateHandler.onConnect(remoteHost);
+        }
+
+        @Override
+        public void onClosed() {
+            mIsConnected = false;
+            mClientStateHandler.onDisconnect();
+        }
+
+        @Override
+        public void onGotCmdMsg(Beans.TransfPkgMsg msg) {
+            Log.i(TAG, "onGotJsonMsg: msg:"+msg);
+            mClientDataHandler.onGotCmdData(msg);
+        }
+
+        @Override
+        public void onGotVideoMsg(Beans.VideoData msg) {
+            mClientDataHandler.onGotVideoData(msg);
+        }
+    };
+
+
+    ISocketClient mSocketClient = null;
     private void innerConnectSocket(String host, int port){
         Log.i(TAG, "onGotServerInfo() called with: host = [" + host + "], port = [" + port + "]");
         new Thread(){
             @Override
             public void run() {
                 super.run();
-                try {
-                    Socket soc = new Socket(host,port);
-                    mClient = new SocketDealer();
-                    mClient.init(soc,mSocDealCb);
-                    mClient.begin();
-                    if(mMsgSenderT == null){
-                        mMsgSenderQue.clear();
-                        mMsgSenderT = new MsgSenderThread();
-                        mMsgSenderT.start();
-                    }
-
-                } catch (IOException e) {
-                    Log.e(TAG, "onGotServerInfo: ", e);
-                }
+                mSocketClient = new ClientSocketImpl();
+                mSocketClient.connect(host,port,mInnerClientCb);
             }
         }.start();
     }
 
 
-    ITransf.ISocDealCallBack mSocDealCb = new ITransf.ISocDealCallBack() {
-        @Override
-        public void onGotOus(OutputStream ous, String remote) {
-            mSocOus = ous;
-            mClientStateHandler.onConnect(remote);
-        }
-
-        @Override
-        public void onGotJsonMsg(Beans.TransfPkgMsg msg, OutputStream ous) {
-            // cmd
-            Log.i(TAG, "onGotJsonMsg: msg:"+msg);
-            mClientDataHandler.onGotCmdData(msg);
-        }
-
-        @Override
-        public void onSocClosed(Socket socket, OutputStream ous) {
-            mSocOus = null;
-            mClientStateHandler.onDisconnect();
-        }
-
-        @Override
-        public void onGotVideoMsg(Beans.VideoData msg, OutputStream ous) {
-//            Log.i(TAG, "onGotVideoMsg() called with: msg = [" + msg + "], ous = [" + ous + "]");
-            mClientDataHandler.onGotVideoData(msg);
-        }
-
-    };
 
     private void addInnerMsgToQue(Object msg, int target) {
         if(msg instanceof Beans.TransfPkgMsg) throw new RuntimeException(" sendObjectCmd msg should not be CommandMsg.class");
-        if(mSocOus == null){
-            Log.i(TAG, "addCmdToQue: mSocOus is null, return! ");
+        if( !mIsConnected ){
+            Log.i(TAG, "addInnerMsgToQue mIsConnected = false , return! ");
             return;
         }
 
@@ -283,34 +248,7 @@ public class TransfClient implements ITransferClient{
 
     private void addMsgToQue(String msgStr,HashSet<String> targets,boolean outerMsg){
         Beans.TransfPkgMsg destMsg = Beans.TransfPkgMsg.Builder.genSpecTargetsMsg(msgStr,targets,outerMsg?0:1);
-        mMsgSenderQue.offer(destMsg);
-    }
-
-
-    ArrayBlockingQueue<Beans.TransfPkgMsg> mMsgSenderQue = new ArrayBlockingQueue<>(100);
-    class MsgSenderThread extends Thread{
-
-        boolean mExit = false;
-        void exit(){
-            mExit = true;
-        }
-
-        @Override
-        public void run() {
-            super.run();
-            while (!mExit){
-                Beans.TransfPkgMsg msg = null;
-                try {
-                    msg = mMsgSenderQue.poll(100, TimeUnit.SECONDS);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-                if(msg == null){
-                    continue;
-                }
-                SocketDealer.sendCmdMsg(mSocOus,msg);
-            }
-        }
+        mSocketClient.sendMsg(destMsg);
     }
 
 }
