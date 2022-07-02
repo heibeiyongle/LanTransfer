@@ -12,12 +12,14 @@ import com.thunder.common.lib.transf.nio.AbsSocketCommon;
 import com.thunder.common.lib.transf.nio.SocketWrapper;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
 
@@ -33,10 +35,10 @@ public class SocketServerImpl extends AbsSocketCommon implements ISocketServer{
     private HashMap<SocketChannel,SocketWrapper> clientsMap = new HashMap<>();
 
     @Override
-    public void startServer(IServerSocCb serverSocCb) {
+    public void startServer(int port , IServerSocCb serverSocCb) {
         mNotify = serverSocCb;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            innerStart();
+            innerStart(port);
         }else {
             Log.e(TAG, "startServer failed, Build.VERSION.SDK_INT ["+Build.VERSION.SDK_INT +"] < N(24) ");
         }
@@ -91,15 +93,19 @@ public class SocketServerImpl extends AbsSocketCommon implements ISocketServer{
 
 
     @RequiresApi(api = Build.VERSION_CODES.N)
-    private void innerStart(){
+    private void innerStart(int port){
         try {
             ServerSocketChannel ssc = ServerSocketChannel.open();
             ssc.configureBlocking(false);
-            ssc.bind(null);
+            if(port != -1){
+                ssc.bind(new InetSocketAddress(port));
+            }else {
+                ssc.bind(null);
+            }
             if(mNotify != null){
                 mNotify.onInitSuc(ssc.socket().getLocalPort());
             }
-
+            clientsMap.clear();
             Selector selector = Selector.open();
             ssc.register(selector, SelectionKey.OP_ACCEPT);
             while (selector.isOpen()){
@@ -176,11 +182,12 @@ public class SocketServerImpl extends AbsSocketCommon implements ISocketServer{
                     }
                 }
             }
-            mNotify.onStopped();
-
         } catch (IOException e) {
             e.printStackTrace();
             Log.e(TAG, "innerStart: ", e);
+        }finally {
+            mNotify.onStopped();
+            clientsMap.clear();
         }
     }
 
@@ -194,8 +201,14 @@ public class SocketServerImpl extends AbsSocketCommon implements ISocketServer{
         }
     }
 
+    private HashSet<String> clientNameCacheSet = new HashSet<>();
     String genClientName(){
-        return "xxxx-"+System.nanoTime();
+        String res ="xxxx-"+System.nanoTime();
+        while (clientNameCacheSet.contains(res)){
+            res = "xxxx-"+(System.nanoTime()+1);
+        }
+        clientNameCacheSet.add(res);
+        return  res;
     }
 
 

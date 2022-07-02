@@ -29,6 +29,7 @@ public interface IMediaClient {
         void onStartServiceListener();
         void onFindServer();
         void onServerConnected(String clientHost);
+        void onGotClientInfo(String clientName);
         void onServerDisConnected();
         void onVideoStart();
         void onVideoStop();

@@ -136,6 +136,13 @@ public class ClientApi implements IClientApi{
         }
 
         @Override
+        public void onGotClientInfo(String clientName) {
+            if(mNotify != null){
+                mNotify.onGotClientInfo(clientName);
+            }
+        }
+
+        @Override
         public void onServerDisConnected() {
             if(mNotify != null){
                 mNotify.onServerDisConnected();

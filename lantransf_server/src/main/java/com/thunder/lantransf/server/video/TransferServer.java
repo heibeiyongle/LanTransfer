@@ -69,6 +69,7 @@ class TransferServer implements ITransfServer {
         }
     }
 
+    int mLastServerPort = -1;
 
     ISocketServer.IServerSocCb mNewSocketServerSb = new ISocketServer.IServerSocCb() {
         @Override
@@ -77,6 +78,8 @@ class TransferServer implements ITransfServer {
             if(mStateCb != null){
                 mStateCb.onSocketServerReady();
             }
+            mLastServerPort = port;
+            restartServerCnt = 0; // reset
             regNsdServer(port,mRegL);
             startPublishMsg();
         }
@@ -84,6 +87,10 @@ class TransferServer implements ITransfServer {
         @Override
         public void onStopped() {
             mStateCb.onSocketServerStopped();
+            if(!mStopByUser){
+                // restart it
+                onUnExceptServerStop();
+            }
         }
 
         @Override
@@ -122,13 +129,33 @@ class TransferServer implements ITransfServer {
     public void startTransfServer(Context context) {
         mCtx = context;
         mNsdManager = (NsdManager) mCtx.getSystemService(Context.NSD_SERVICE);
-        initVideoServerSocket(mNewSocketServerSb);
+        mStopByUser = false;
+        mLastServerPort = -1;
+        restartServerCnt = 0;
+        initVideoServerSocket( -1,-1, mNewSocketServerSb);
     }
 
+    private boolean mStopByUser = false;
     @Override
     public void stopServer() {
+        mStopByUser = true;
         //todo stop
     }
+
+    private static final int MAX_RESTART_TIMES_ZONE = 3;
+    private int restartServerCnt = 0;
+    private void onUnExceptServerStop(){
+        restartServerCnt++;
+        if(restartServerCnt > MAX_RESTART_TIMES_ZONE){
+            Log.e(TAG, "onUnExceptServerStop, DO-NOT to retry! return! for restartServerCnt: "+ restartServerCnt +" > MAX_RESTART_TIMES_ZONE("+MAX_RESTART_TIMES_ZONE+")");
+            return;
+        }
+        Log.i(TAG, "onUnExceptServerStop: reStart server ("+restartServerCnt+")");
+        // wait 1s to restart
+        initVideoServerSocket(1000, mLastServerPort, mNewSocketServerSb);
+    }
+
+
 
     @Override
     public ArrayBlockingQueue<Object> getOutputQue() {
@@ -289,13 +316,20 @@ class TransferServer implements ITransfServer {
     }
 
     ISocketServer mSocServer = null;
-    private void initVideoServerSocket(ISocketServer.IServerSocCb scb){
+    private void initVideoServerSocket(int delayMs,int port,ISocketServer.IServerSocCb scb){
         Thread thread = new Thread(){
             @Override
             public void run() {
                 super.run();
+                if(delayMs > 0){
+                    try {
+                        Thread.sleep(delayMs);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
                 mSocServer = new SocketServerImpl();
-                mSocServer.startServer(scb);
+                mSocServer.startServer(port,scb);
             }
         };
         thread.start();

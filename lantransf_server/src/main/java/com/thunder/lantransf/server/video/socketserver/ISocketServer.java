@@ -9,7 +9,7 @@ import com.thunder.common.lib.dto.Beans;
  */
 public interface ISocketServer {
 
-    void startServer(IServerSocCb serverSocCb);
+    void startServer(int port,IServerSocCb serverSocCb);
 
     interface IServerSocCb{
         void onInitSuc(int port);

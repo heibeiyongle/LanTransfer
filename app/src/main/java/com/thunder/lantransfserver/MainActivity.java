@@ -32,26 +32,54 @@ import java.util.Arrays;
 public class MainActivity extends AppCompatActivity {
 
     /**
+     * 0. 自动打包 添加版本号
+     *      内网maven
+     *
+     *  公版逻辑 + server-sdk
+     *
+     *  demo + client-sdk
+     *  client-demo  surface-view UI 要与公版一致
+     *
+     *  公版 + client-sdk
+     *  播放状态msg 同步
+     *  歌单列表同步
+     *  用户信息同步
+     *  首页数据同步
+     *  收藏逻辑同步
+     *      收藏action --> local-server --> web-server
+     *                           ^              \
+     *                           \--------------\
+     *
+     *
+     *
+     *
      * 1. server 停止后,自动恢复, 同时给出状态回调
+     *      a. 自动恢复, msg-server , socket-server ,
+     *          尝试使用原来端口号重启, done
+     *          重启完成后,再次注册mdns done
+     *      todo b. video-server
+     *
      * 2. server 向client 推送数据, 多个 client 不互相阻塞, 通过nio 监听解决, 可写状态
      *  a. socket obj:
      *      read buf
      *      write msg queue
      *      write buf
+     *  b. 将client消息队列的实时情况打印出来,
      *
-     *
-     * 3. 分配clientName
-     * 4. nio 改造 server
-     * 5. msg pack 添加tag-flag
+     * 3. 分配clientName done
+     * 4. nio 改造 server done
+     * 5. msg pack 添加tag-flag done
      *
      * client
      * 1. 断开后重连.
      *      重连上一个地址,
      *      监听新地址, 发起连接
-     * 2. 从服务端获取clientName
+     * 2. 从服务端获取clientName d
      * 3. 连接速率提高
-     * 4. nio 改造
-     * 5. 视频防止黑屏
+     * 4. nio 改造 d
+     * 5. 视频防止黑屏 d
+     *
+     *
      *
      *
      *  common
@@ -111,6 +139,7 @@ public class MainActivity extends AppCompatActivity {
     class ClientStateInfo{
         String clientState;
         String videoState;
+        String clientHost;
         String clientName;
 
         @Override
@@ -400,9 +429,16 @@ public class MainActivity extends AppCompatActivity {
         }
 
         @Override
-        public void onServerConnected(String clientName) {
+        public void onServerConnected(String clientHost) {
             Log.d(TAG, "onServerConnected() called");
             mClientInfo.clientState = "onServerConnected";
+            mClientInfo.clientHost = clientHost;
+            updateInfo();
+        }
+
+        @Override
+        public void onGotClientInfo(String clientName) {
+            Log.d(TAG, "onGotClientInfo() called with: clientName = [" + clientName + "]");
             mClientInfo.clientName = clientName;
             updateInfo();
         }

@@ -206,6 +206,9 @@ class MediaClient implements IMediaClient{
             Beans.TransfPkgMsg.ResClientInfo tmpMsg = GsonUtils.parseFromLinkedTreeMap(
                     (LinkedTreeMap) msgWrapper.getMsg(), Beans.TransfPkgMsg.ResClientInfo.class);
             mTransfClient.updateLocalClientName(tmpMsg.clientName);
+            if(mNotify != null){
+                mNotify.onGotClientInfo(tmpMsg.clientName);
+            }
         }
 
 

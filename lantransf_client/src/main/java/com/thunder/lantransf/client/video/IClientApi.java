@@ -36,6 +36,7 @@ public interface IClientApi {
         void onRegFind();
         void onFindServer();
         void onServerConnected(String clientHost);
+        void onGotClientInfo(String clientName);
         void onServerDisConnected();
         void onVideoStart();
         void onVideoStop();
