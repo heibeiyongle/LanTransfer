@@ -79,61 +79,34 @@ class MediaServer implements IMediaServer {
     EncodeThread mEncodeT = null;
     MediaCodec encoder = null;
     Surface surface = null;
-//
-//    // parameters for the encoder
-//    private static final String MIME_TYPE = "video/avc";    // H.264 Advanced Video Coding
-//    private static final int FRAME_RATE = 15;               // 15fps
-//    private static final int IFRAME_INTERVAL = 10;          // 10 seconds between I-frames
 
     private void initEncoder() {
-        int videoW, videoH;
-
-        MediaCodecInfo codecInfo = selectCodec(MediaFormat.MIMETYPE_VIDEO_AVC);
+        MediaCodecInfo codecInfo = selectCodec(MIME_TYPE);
         if (codecInfo == null) {
             // Don't fail CTS if they don't have an AVC codec (not here, anyway).
-            Log.e(TAG, "Unable to find an appropriate codec for " + MediaFormat.MIMETYPE_VIDEO_AVC);
+            Log.e(TAG, "Unable to find an appropriate codec for " + MIME_TYPE);
             return;
         }
         Log.i(TAG, "found codec: " + codecInfo.getName());
-//        try {
-//            encoder = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_VIDEO_AVC);
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
-        videoW = 1280;
-        videoH = 720;
 
-        MediaFormat format = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, videoW, videoH);
-
+        // We avoid the device-specific limitations on width and height by using values that
+        // are multiples of 16, which all tested devices seem to be able to handle.
+        MediaFormat format = MediaFormat.createVideoFormat(MIME_TYPE, mWidth, mHeight);
         // Set some properties.  Failing to specify some of these can cause the MediaCodec
         // configure() call to throw an unhelpful exception.
         format.setInteger(MediaFormat.KEY_COLOR_FORMAT,
                 MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
-        format.setInteger(MediaFormat.KEY_BIT_RATE, 6000000);
+        format.setInteger(MediaFormat.KEY_BIT_RATE, 60000);
         format.setInteger(MediaFormat.KEY_FRAME_RATE, 15);
         format.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 10);
+        Log.i(TAG, "format: " + format);
 
-        // Create a MediaCodec for the desired codec, then configure it as an encoder with
-        // our desired properties.
         try {
             encoder = MediaCodec.createByCodecName(codecInfo.getName());
         } catch (IOException e) {
             e.printStackTrace();
         }
         encoder.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
-//        surface = encoder.createInputSurface();
-
-//        MediaFormat format = MediaFormat.createVideoFormat(
-//                MediaFormat.MIMETYPE_VIDEO_AVC, videoW, videoH);
-//        format.setInteger(MediaFormat.KEY_FRAME_RATE, 30);
-//        format.setInteger(MediaFormat.KEY_BIT_RATE, 1000*8*1024);
-////                format.setInteger(MediaFormat.KEY_BITRATE_MODE, MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_VBR);
-////                format.setInteger(MediaFormat.KEY_BITRATE_MODE, MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_CQ); // 3568 crash
-//        format.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
-//        format.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1); //关键帧间隔时间 单位s
-//        encoder.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
-//        surface = encoder.createInputSurface();
-
     }
 
     /**
@@ -188,45 +161,12 @@ class MediaServer implements IMediaServer {
         int generateIndex = 0;
 
         private void generateVideoData() {
-            final int TIMEOUT_USEC = 10000;
-
-            int outputCount = 0;
-
-            MediaCodecInfo codecInfo = selectCodec(MIME_TYPE);
-            if (codecInfo == null) {
-                // Don't fail CTS if they don't have an AVC codec (not here, anyway).
-                Log.e(TAG, "Unable to find an appropriate codec for " + MIME_TYPE);
-                return;
-            }
-            Log.i(TAG, "found codec: " + codecInfo.getName());
-
-            // We avoid the device-specific limitations on width and height by using values that
-            // are multiples of 16, which all tested devices seem to be able to handle.
-            MediaFormat format = MediaFormat.createVideoFormat(MIME_TYPE, mWidth, mHeight);
-
-            // Set some properties.  Failing to specify some of these can cause the MediaCodec
-            // configure() call to throw an unhelpful exception.
-            format.setInteger(MediaFormat.KEY_COLOR_FORMAT,
-                    MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
-            format.setInteger(MediaFormat.KEY_BIT_RATE, 60000);
-            format.setInteger(MediaFormat.KEY_FRAME_RATE, 15);
-            format.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 10);
-            Log.i(TAG, "format: " + format);
-
-            // Create a MediaCodec for the desired codec, then configure it as an encoder with
-            // our desired properties.
-            try {
-                encoder = MediaCodec.createByCodecName(codecInfo.getName());
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            encoder.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
-
+            initEncoder();
+            Surface surface = encoder.createInputSurface();
 
             Runnable gen = new Runnable() {
                 @Override
                 public void run() {
-                    Surface surface = encoder.createInputSurface();
                     Log.i(TAG, "run: surface: " + surface);
                     InputSurface inputSurface = new InputSurface(surface);
                     inputSurface.makeCurrent();
@@ -254,48 +194,11 @@ class MediaServer implements IMediaServer {
             }
 
             encoder.start();
-            ByteBuffer[] encoderOutputBuffers = encoder.getOutputBuffers();
             MediaCodec.BufferInfo info = new MediaCodec.BufferInfo();
 
-            // Loop until the output side is done.
-            boolean inputDone = false;
-            boolean outputDone = false;
             byte[] tmp = new byte[1024 * 1024 * 10];
             boolean isFirstFrame = true;
-            while (!outputDone) {
-//            if (VERBOSE) Log.i(TAG, "gen loop");
-
-                // If we're not done submitting frames, generate a new one and submit it.  The
-                // eglSwapBuffers call will block if the input is full.
-//            if (!inputDone) {
-//                if (generateIndex == NUM_FRAMES) {
-//                    // Send an empty frame with the end-of-stream flag set.
-//                    if (VERBOSE) Log.i(TAG, "signaling input EOS");
-//                    if (WORK_AROUND_BUGS) {
-//                        // Might drop a frame, but at least we won't crash mediaserver.
-//                        try { Thread.sleep(500); } catch (InterruptedException ie) {}
-//                        outputDone = true;
-//                    } else {
-//                        encoder.signalEndOfInputStream();
-//                    }
-//                    inputDone = true;
-//                } else {
-//                    generateSurfaceFrame(generateIndex);
-//                    inputSurface.setPresentationTime(computePresentationTime(generateIndex) * 1000);
-//                    if (VERBOSE) Log.i(TAG, "inputSurface swapBuffers");
-//                    inputSurface.swapBuffers();
-//                }
-//                generateIndex++;
-//            }
-
-                // Check for output from the encoder.  If there's no output yet, we either need to
-                // provide more input, or we need to wait for the encoder to work its magic.  We
-                // can't actually tell which is the case, so if we can't get an output buffer right
-                // away we loop around and see if it wants more input.
-                //
-                // If we do find output, drain it all before supplying more input.
-
-
+            while (!exit) {
                 while (true) {
                     int outBufIndex = encoder.dequeueOutputBuffer(info, 10000);
 //                    Log.i(TAG, "run -----1 : outBufIndex: "+outBufIndex);
@@ -337,13 +240,13 @@ class MediaServer implements IMediaServer {
                     Log.i(TAG, " ============= on got frame ! ");
                     encoder.releaseOutputBuffer(outBufIndex, false);
                 }
-//                if (mNotify != null) {
-//                    mNotify.onServerStopped();
-//                }
+            }
+            if (mNotify != null) {
+                mNotify.onServerStopped();
             }
             videoQue.clear();
             // One chunk per frame, plus one for the config data.
-            Log.i(TAG, "generateVideoData: assertEquals: NUM_FRAMES + 1: outputCount: " + outputCount);
+            Log.i(TAG, "generateVideoData: assertEquals: NUM_FRAMES + 1: outputCount: ");
 //        assertEquals("Frame count", NUM_FRAMES + 1, outputCount);
         }
 
