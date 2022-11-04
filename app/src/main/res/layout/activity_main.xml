@@ -10,17 +10,20 @@
         android:layout_width="match_parent"
         android:layout_height="200dp">
         <TextView
+            android:layout_gravity=""
             android:id="@+id/v_close"
             android:text="X"
             android:padding="5dp"
             android:background="#f00"
             android:textColor="#fff"
+            android:textSize="30sp"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"/>
         <TextView
             android:layout_marginLeft="40dp"
             android:id="@+id/tv_info"
             android:padding="10dp"
+            android:textSize="30sp"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"/>
         <TextView
@@ -29,6 +32,7 @@
             android:layout_gravity="bottom"
             android:gravity="bottom|right"
             android:textColor="#f00"
+            android:textSize="30sp"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"/>
 
@@ -58,7 +62,7 @@
                 android:layout_gravity="center_horizontal"
                 android:background="#f00"
                 android:padding="10dp"
-                android:textSize="10sp"
+                android:textSize="30sp"
                 android:text="Start-server"
                 android:textColor="@color/white" />
 
@@ -68,9 +72,9 @@
                 android:layout_height="wrap_content"
                 android:layout_gravity="center_horizontal"
                 android:background="#f00"
-                android:layout_marginTop="20dp"
+                android:layout_marginTop="200dp"
                 android:padding="10dp"
-                android:textSize="10sp"
+                android:textSize="30sp"
                 android:text="Start-publish_video"
                 android:textColor="@color/white" />
 
@@ -80,9 +84,9 @@
                 android:layout_height="wrap_content"
                 android:layout_gravity="center_horizontal"
                 android:background="#f00"
-                android:layout_marginTop="20dp"
+                android:layout_marginTop="200dp"
                 android:padding="10dp"
-                android:textSize="10sp"
+                android:textSize="30sp"
                 android:text="Send_msg_play_state"
                 android:textColor="@color/white" />
 
@@ -130,7 +134,7 @@
                         android:layout_height="wrap_content"
                         android:background="#f00"
                         android:padding="5dp"
-                        android:textSize="10sp"
+                        android:textSize="30sp"
                         android:text="Show"
                         android:textColor="@color/white" />
 
@@ -141,7 +145,7 @@
                         android:layout_marginTop="5dp"
                         android:background="#f00"
                         android:padding="10dp"
-                        android:textSize="10sp"
+                        android:textSize="30sp"
                         android:text="Hide"
                         android:textColor="@color/white" />
 
@@ -152,7 +156,7 @@
                         android:layout_marginTop="5dp"
                         android:background="#f00"
                         android:padding="10dp"
-                        android:textSize="10sp"
+                        android:textSize="30sp"
                         android:text="btn-clk"
                         android:textColor="@color/white" />
 
@@ -163,7 +167,7 @@
                         android:layout_marginTop="5dp"
                         android:background="#f00"
                         android:padding="10dp"
-                        android:textSize="10sp"
+                        android:textSize="30sp"
                         android:text="get-server-state"
                         android:textColor="@color/white" />
 

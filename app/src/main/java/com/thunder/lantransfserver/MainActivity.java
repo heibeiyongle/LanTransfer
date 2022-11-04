@@ -24,6 +24,7 @@ import com.thunder.lantransf.msg.TransfMsgWrapper;
 import com.thunder.lantransf.msg.codec.CodecUtil;
 import com.thunder.lantransf.server.video.IServerApi;
 import com.thunder.lantransf.server.video.ServerApi;
+import com.thunder.lantransfserver.video.GenVideoAndPlay;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -267,6 +268,11 @@ public class MainActivity extends AppCompatActivity {
     private void startPublish(){
         Log.d(TAG, "startPublish() called");
         Surface sinkSurface = ServerApi.getInstance().startPublishMedia();
+
+        //todo check encoder is started
+//        GenVideoAndPlay genVideoAndPlay = new GenVideoAndPlay();
+//        genVideoAndPlay.runTest(sinkSurface);
+
     }
 
     private void serverBroadMsg(){
