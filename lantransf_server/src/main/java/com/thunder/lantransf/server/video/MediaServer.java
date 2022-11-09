@@ -95,10 +95,10 @@ class MediaServer implements IMediaServer {
         // configure() call to throw an unhelpful exception.
         format.setInteger(MediaFormat.KEY_COLOR_FORMAT,
                 MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
-        format.setInteger(MediaFormat.KEY_BIT_RATE, 60000);
-        format.setInteger(MediaFormat.KEY_FRAME_RATE, 15);
-        format.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 10);
-        Log.i(TAG, "format: " + format);
+        format.setInteger(MediaFormat.KEY_BIT_RATE, 1024*1024*8);
+        format.setInteger(MediaFormat.KEY_FRAME_RATE, 30);
+        format.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1);
+        Log.i(TAG, " format: " + format);
 
         try {
             encoder = MediaCodec.createByCodecName(codecInfo.getName());
@@ -183,7 +183,7 @@ class MediaServer implements IMediaServer {
                     if(tmpDataObj != null){
                         videoQue.offer(tmpDataObj);
                     }
-                    Log.i(TAG, " ============= on got frame ! encodeFrameCnt: "+encodeFrameCnt);
+                    Log.i(TAG, " ============= on got frame --1 ! encodeFrameCnt: "+encodeFrameCnt);
                     encoder.releaseOutputBuffer(outBufIndex, false);
                 }
             }
