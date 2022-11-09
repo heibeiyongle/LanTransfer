@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 class MediaServer implements IMediaServer {
     private static final String TAG = "MediaServer";
@@ -41,16 +42,11 @@ class MediaServer implements IMediaServer {
             return;
         }
         this.videoQue = videoQue;
-//        initEncoder();
         mEncodeT = new EncodeThread();
         mEncodeT.start();
-        // debug code 没有播放器sdk 的数据源，mock it !
         if (mNotify != null) {
             mNotify.onServerReady();
         }
-
-//        VideoDecoder videoDecoder = new VideoDecoder();
-//        videoDecoder.startRead("/data/local/tmp/big_buck_bunny.h264",videoQue);
     }
 
     @Override
@@ -80,7 +76,7 @@ class MediaServer implements IMediaServer {
     MediaCodec encoder = null;
     Surface surface = null;
 
-    private void initEncoder() {
+    private void initEncoder(int vw, int vh) {
         MediaCodecInfo codecInfo = selectCodec(MIME_TYPE);
         if (codecInfo == null) {
             // Don't fail CTS if they don't have an AVC codec (not here, anyway).
@@ -91,7 +87,7 @@ class MediaServer implements IMediaServer {
 
         // We avoid the device-specific limitations on width and height by using values that
         // are multiples of 16, which all tested devices seem to be able to handle.
-        MediaFormat format = MediaFormat.createVideoFormat(MIME_TYPE, mWidth, mHeight);
+        MediaFormat format = MediaFormat.createVideoFormat(MIME_TYPE, vw, vh);
         // Set some properties.  Failing to specify some of these can cause the MediaCodec
         // configure() call to throw an unhelpful exception.
         format.setInteger(MediaFormat.KEY_COLOR_FORMAT,
@@ -135,14 +131,10 @@ class MediaServer implements IMediaServer {
 
 
     ArrayBlockingQueue<Object> videoQue = null;
-    int generateIndex = 0;
     private static final String MIME_TYPE = "video/avc";    // H.264 Advanced Video Coding
-
     class EncodeThread extends Thread {
 
         int videoW = 1280, videoH = 720;
-        MediaCodec.BufferInfo mBufInfo = new MediaCodec.BufferInfo();
-        long outTimeOutUs = 1000 * 3;
 
         boolean exit = false;
 
@@ -154,16 +146,14 @@ class MediaServer implements IMediaServer {
         @Override
         public void run() {
             super.run();
-            generateVideoData();
+            encodeVideoData(1280,720);
         }
 
-
         int generateIndex = 0;
-
-        private void generateVideoData() {
-            initEncoder();
+        private void encodeVideoData(int w, int h) {
+            initEncoder(w,h);
             Surface surface = encoder.createInputSurface();
-
+            AtomicBoolean surfaceRendered = new AtomicBoolean(false);
             Runnable gen = new Runnable() {
                 @Override
                 public void run() {
@@ -171,10 +161,16 @@ class MediaServer implements IMediaServer {
                     InputSurface inputSurface = new InputSurface(surface);
                     inputSurface.makeCurrent();
                     while (true) {
-                        generateSurfaceFrame(generateIndex);
+                        generateSurfaceFrame(w,h,generateIndex);
                         inputSurface.setPresentationTime(computePresentationTime(generateIndex) * 1000);
                         Log.i(TAG, "inputSurface swapBuffers");
                         inputSurface.swapBuffers();
+                        if(!surfaceRendered.get()){
+                            surfaceRendered.set(true);
+                            synchronized (surfaceRendered){
+                                surfaceRendered.notifyAll();
+                            }
+                        }
                         try {
                             Thread.sleep(500);
                         } catch (InterruptedException e) {
@@ -186,56 +182,45 @@ class MediaServer implements IMediaServer {
             };
             new Thread(gen).start();
 
-            try {
-                Thread.sleep(2000);
-                Log.i(TAG, "encoder start ! ");
-            } catch (InterruptedException e) {
-                e.printStackTrace();
+            if(!surfaceRendered.get()){
+                synchronized (surfaceRendered){
+                    try {
+                        Log.i(TAG, " encodeVideoData wait ");
+                        surfaceRendered.wait();
+                        Log.i(TAG, " encodeVideoData wake-up ");
+                    } catch (InterruptedException e) {
+                        Log.e(TAG, "encodeVideoData: ",e);
+                    }
+                }
             }
-
+            Log.i(TAG, " encodeVideoData start ");
             encoder.start();
             MediaCodec.BufferInfo info = new MediaCodec.BufferInfo();
-
-            byte[] tmp = new byte[1024 * 1024 * 10];
             boolean isFirstFrame = true;
             while (!exit) {
                 while (true) {
                     int outBufIndex = encoder.dequeueOutputBuffer(info, 10000);
-//                    Log.i(TAG, "run -----1 : outBufIndex: "+outBufIndex);
                     if (outBufIndex == MediaCodec.INFO_TRY_AGAIN_LATER) {
 //                        Log.i(TAG, "run: MediaCodec.INFO_TRY_AGAIN_LATER");
                         continue;
                     } else if (outBufIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
                         Log.i(TAG, "run: MediaCodec.INFO_OUTPUT_FORMAT_CHANGED");
                         MediaFormat newFormat = encoder.getOutputFormat();
-                        Log.i(TAG, "encoder output format changed: " + newFormat);
+                        videoW = newFormat.getInteger(MediaFormat.KEY_WIDTH);
+                        videoH = newFormat.getInteger(MediaFormat.KEY_HEIGHT);
+                        Log.i(TAG, "encoder output format changed: w*h: "+videoW+"x"+videoH+" format:" + newFormat);
                         continue;
                     } else if (outBufIndex < 0) {
-                        Log.i(TAG, "run: outBufIndex: " + outBufIndex);
+                        Log.i(TAG, "outBufIndex <0 , value: " + outBufIndex);
                         continue;
                     }
-                    Log.i(TAG, "run: outBufIndex: " + outBufIndex);
+                    Log.i(TAG, "outBufIndex: " + outBufIndex);
                     if (isFirstFrame && mNotify != null) {
                         mNotify.onGenerateFirstFrame();
                         isFirstFrame = false;
                     }
-
                     ByteBuffer bf = encoder.getOutputBuffer(outBufIndex);
-                    int dataSize = bf.remaining();
-                    bf.get(tmp, 0, dataSize);
-                    boolean isKeyFrame = info.flags == BUFFER_FLAG_KEY_FRAME;
-                    boolean isConfigFrame = info.flags == BUFFER_FLAG_CODEC_CONFIG;
-                    byte[] tmpDest = Arrays.copyOfRange(tmp, 0, dataSize);
-//                    Log.i(TAG, " encode h264: "+Arrays.toString(Arrays.copyOfRange(tmpDest,0,100)));
-//                    Log.i(TAG, " encode h264: 100-end"+ Arrays.toString(Arrays.copyOfRange(tmpDest,tmpDest.length-100 < 0 ? 0:tmpDest.length-100 ,tmpDest.length)));
-                    Beans.VideoData tmpDataObj = new Beans.VideoData(isConfigFrame, isKeyFrame, videoW, videoH,
-                            tmpDest);
-
-                    if (isKeyFrame) {
-                        Log.i(TAG, " ENCODE BUFFER_FLAG_KEY_FRAME");
-                    } else if (isConfigFrame) {
-                        Log.i(TAG, " ENCODE BUFFER_FLAG_CODEC_CONFIG");
-                    }
+                    Beans.VideoData tmpDataObj = genVideoData(info,bf,videoW,videoH);
                     videoQue.offer(tmpDataObj);
                     Log.i(TAG, " ============= on got frame ! ");
                     encoder.releaseOutputBuffer(outBufIndex, false);
@@ -245,22 +230,33 @@ class MediaServer implements IMediaServer {
                 mNotify.onServerStopped();
             }
             videoQue.clear();
-            // One chunk per frame, plus one for the config data.
-            Log.i(TAG, "generateVideoData: assertEquals: NUM_FRAMES + 1: outputCount: ");
-//        assertEquals("Frame count", NUM_FRAMES + 1, outputCount);
         }
 
 
     }
 
-    private void setInputSurface(Surface sink) {
-        Log.i(TAG, "onGotSurface: surface: " + sink);
-        VideoDecoder videoDecoder = new VideoDecoder();
-        videoDecoder.setSurface(sink);
-        videoDecoder.startRead("/data/local/tmp/big_buck_bunny.h264");
+    private Beans.VideoData genVideoData(MediaCodec.BufferInfo info, ByteBuffer byteBuffer,int videoW, int videoH){
+        int dataSize = byteBuffer.remaining();
+        Log.i(TAG, "genVideoData: bufferDataSize: "+dataSize);
+        if(dataSize < 0){
+            return null;
+        }
+        byte[] dataArr = new byte[dataSize];
+        byteBuffer.get(dataArr);
+        boolean isKeyFrame = info.flags == BUFFER_FLAG_KEY_FRAME;
+        boolean isConfigFrame = info.flags == BUFFER_FLAG_CODEC_CONFIG;
+//                    Log.i(TAG, " encode h264: "+Arrays.toString(Arrays.copyOfRange(tmpDest,0,100)));
+//                    Log.i(TAG, " encode h264: 100-end"+ Arrays.toString(Arrays.copyOfRange(tmpDest,tmpDest.length-100 < 0 ? 0:tmpDest.length-100 ,tmpDest.length)));
+        Beans.VideoData tmpDataObj = new Beans.VideoData(isConfigFrame, isKeyFrame, videoW, videoH,
+                dataArr);
+        if (isKeyFrame) {
+            Log.i(TAG, " ENCODE BUFFER_FLAG_KEY_FRAME");
+        } else if (isConfigFrame) {
+            Log.i(TAG, " ENCODE BUFFER_FLAG_CODEC_CONFIG");
+        }
+        return tmpDataObj;
     }
 
-    int mWidth = 1280, mHeight = 720;
 
     private static final int TEST_R0 = 0;                   // dull green background
     private static final int TEST_G0 = 136;
@@ -287,7 +283,7 @@ class MediaServer implements IMediaServer {
      * </pre>
      * We draw one of the eight rectangles and leave the rest set to the zero-fill color.
      */
-    private void generateSurfaceFrame(int frameIndex) {
+    private void generateSurfaceFrame(int mWidth, int mHeight, int frameIndex) {
         frameIndex %= 8;
 
         int startX, startY;
