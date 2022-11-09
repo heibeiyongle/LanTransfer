@@ -42,6 +42,9 @@ class MediaServer implements IMediaServer {
             return;
         }
         this.videoQue = videoQue;
+        initEncoder(1280,720);
+        mSurface = encoder.createInputSurface();
+//        startGenVideo(mSurface,1280,720);
         mEncodeT = new EncodeThread();
         mEncodeT.start();
         if (mNotify != null) {
@@ -62,7 +65,7 @@ class MediaServer implements IMediaServer {
 
     @Override
     public Surface getCurrSUrface() {
-        return surface;
+        return mSurface;
     }
 
     IStateCallBack mNotify;
@@ -74,7 +77,7 @@ class MediaServer implements IMediaServer {
 
     EncodeThread mEncodeT = null;
     MediaCodec encoder = null;
-    Surface surface = null;
+    Surface mSurface = null;
 
     private void initEncoder(int vw, int vh) {
         MediaCodecInfo codecInfo = selectCodec(MIME_TYPE);
@@ -129,15 +132,12 @@ class MediaServer implements IMediaServer {
         return null;
     }
 
-
     ArrayBlockingQueue<Object> videoQue = null;
     private static final String MIME_TYPE = "video/avc";    // H.264 Advanced Video Coding
     class EncodeThread extends Thread {
 
         int videoW = 1280, videoH = 720;
-
         boolean exit = false;
-
         public void exit() {
             exit = true;
         }
@@ -146,57 +146,15 @@ class MediaServer implements IMediaServer {
         @Override
         public void run() {
             super.run();
-            encodeVideoData(1280,720);
+            encodeVideoData();
         }
 
-        int generateIndex = 0;
-        private void encodeVideoData(int w, int h) {
-            initEncoder(w,h);
-            Surface surface = encoder.createInputSurface();
-            AtomicBoolean surfaceRendered = new AtomicBoolean(false);
-            Runnable gen = new Runnable() {
-                @Override
-                public void run() {
-                    Log.i(TAG, "run: surface: " + surface);
-                    InputSurface inputSurface = new InputSurface(surface);
-                    inputSurface.makeCurrent();
-                    while (true) {
-                        generateSurfaceFrame(w,h,generateIndex);
-                        inputSurface.setPresentationTime(computePresentationTime(generateIndex) * 1000);
-                        Log.i(TAG, "inputSurface swapBuffers");
-                        inputSurface.swapBuffers();
-                        if(!surfaceRendered.get()){
-                            surfaceRendered.set(true);
-                            synchronized (surfaceRendered){
-                                surfaceRendered.notifyAll();
-                            }
-                        }
-                        try {
-                            Thread.sleep(500);
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
-                        }
-                        generateIndex++;
-                    }
-                }
-            };
-            new Thread(gen).start();
-
-            if(!surfaceRendered.get()){
-                synchronized (surfaceRendered){
-                    try {
-                        Log.i(TAG, " encodeVideoData wait ");
-                        surfaceRendered.wait();
-                        Log.i(TAG, " encodeVideoData wake-up ");
-                    } catch (InterruptedException e) {
-                        Log.e(TAG, "encodeVideoData: ",e);
-                    }
-                }
-            }
+        private void encodeVideoData() {
             Log.i(TAG, " encodeVideoData start ");
             encoder.start();
             MediaCodec.BufferInfo info = new MediaCodec.BufferInfo();
             boolean isFirstFrame = true;
+            int encodeFrameCnt = 0;
             while (!exit) {
                 while (true) {
                     int outBufIndex = encoder.dequeueOutputBuffer(info, 10000);
@@ -214,6 +172,7 @@ class MediaServer implements IMediaServer {
                         Log.i(TAG, "outBufIndex <0 , value: " + outBufIndex);
                         continue;
                     }
+                    encodeFrameCnt++;
                     Log.i(TAG, "outBufIndex: " + outBufIndex);
                     if (isFirstFrame && mNotify != null) {
                         mNotify.onGenerateFirstFrame();
@@ -221,8 +180,10 @@ class MediaServer implements IMediaServer {
                     }
                     ByteBuffer bf = encoder.getOutputBuffer(outBufIndex);
                     Beans.VideoData tmpDataObj = genVideoData(info,bf,videoW,videoH);
-                    videoQue.offer(tmpDataObj);
-                    Log.i(TAG, " ============= on got frame ! ");
+                    if(tmpDataObj != null){
+                        videoQue.offer(tmpDataObj);
+                    }
+                    Log.i(TAG, " ============= on got frame ! encodeFrameCnt: "+encodeFrameCnt);
                     encoder.releaseOutputBuffer(outBufIndex, false);
                 }
             }
@@ -231,7 +192,6 @@ class MediaServer implements IMediaServer {
             }
             videoQue.clear();
         }
-
 
     }
 

@@ -26,9 +26,6 @@ import android.view.Surface;
  */
 public class GenVideoAndPlay {
     private static final String TAG = "DecodeEditEncode";
-    private static final boolean VERBOSE = true;           // lots of logging
-
-    private String dirName = "/sdcard/debug-video/";
 
     // parameters for the encoder
     private static final int FRAME_RATE = 15;               // 15fps
@@ -40,89 +37,30 @@ public class GenVideoAndPlay {
     private static final int TEST_G1 = 0;
     private static final int TEST_B1 = 236;
 
-    // size of a frame, in pixels
-    private int mWidth = -1;
-    private int mHeight = -1;
-
-    public void startVideoQCIF(Surface outSurface) throws Throwable {
-        setParameters(176, 144, 1000000);
-        runTest(outSurface);
-    }
-    public void startVideoQVGA(Surface outSurface) throws Throwable {
-        setParameters(320, 240, 2000000);
-        runTest(outSurface);
-    }
-    public void startVideo720p(Surface outSurface) throws Throwable {
-        setParameters(1280, 720, 6000000);
-        runTest(outSurface);
-    }
-
-    public void runTest(Surface sur){
-        Log.i(TAG, "runTest: surFace: "+sur);
-        GenVideo genVideoRunnable = new GenVideo(sur);
-        Thread th = new Thread(genVideoRunnable, "codec test");
-        th.start();
-    }
-
-    /**
-     * Sets the desired frame size and bit rate.
-     */
-    private void setParameters(int width, int height, int bitRate) {
-        if ((width % 16) != 0 || (height % 16) != 0) {
-            Log.w(TAG, "WARNING: width or height not multiple of 16");
-        }
-        mWidth = width;
-        mHeight = height;
-    }
-
-
-    class GenVideo implements Runnable{
-
-        private Surface outSurface = null;
-        GenVideo(Surface encoderSurface){
-            outSurface = encoderSurface;
-        }
-
-        @Override
-        public void run() {
-            genVideo(outSurface);
-        }
-
-        int generateIndex = 0;
-        private void genVideo(Surface outSurface){
-            Log.i(TAG, "genVideo before sleep-1");
-            try {
-                Thread.sleep(1000);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-            Log.i(TAG, "genVideo before sleep-2");
-            InputSurface inputSurface = new InputSurface(outSurface);
-            inputSurface.makeCurrent();
-            try {
-                Thread.sleep(4000);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-            while (true) {
-                generateSurfaceFrame(generateIndex);
-                inputSurface.setPresentationTime(computePresentationTime(generateIndex) * 1000);
-                if (VERBOSE) Log.i(TAG, "inputSurface swapBuffers");
-                inputSurface.swapBuffers();
-                try {
-                    Thread.sleep(1000);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
+    int generateIndex = 0;
+    public void startGenVideo(Surface renderSur, int w, int h){
+        Runnable gen = new Runnable() {
+            @Override
+            public void run() {
+                Log.i(TAG, "run: surface: " + renderSur);
+                InputSurface inputSurface = new InputSurface(renderSur);
+                inputSurface.makeCurrent();
+                while (true) {
+                    generateSurfaceFrame(w,h,generateIndex);
+                    inputSurface.setPresentationTime(computePresentationTime(generateIndex) * 1000);
+                    Log.i(TAG, "inputSurface swapBuffers generateIndex: "+ generateIndex);
+                    inputSurface.swapBuffers();
+                    try {
+                        Thread.sleep(500);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                    generateIndex++;
                 }
-                generateIndex ++;
             }
-
-        }
+        };
+        new Thread(gen).start();
     }
-
-
-
-
     /**
      * Generates a frame of data using GL commands.
      * <p>
@@ -132,7 +70,7 @@ public class GenVideoAndPlay {
      *   7 6 5 4
      * </pre>
      * We draw one of the eight rectangles and leave the rest set to the zero-fill color.     */
-    private void generateSurfaceFrame(int frameIndex) {
+    private void generateSurfaceFrame(int mWidth, int mHeight, int frameIndex) {
         Log.i(TAG, "generateSurfaceFrame: frameIndex: "+frameIndex);
         frameIndex %= 8;
 

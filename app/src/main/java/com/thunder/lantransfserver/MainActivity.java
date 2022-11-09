@@ -268,11 +268,9 @@ public class MainActivity extends AppCompatActivity {
     private void startPublish(){
         Log.d(TAG, "startPublish() called");
         Surface sinkSurface = ServerApi.getInstance().startPublishMedia();
-
         //todo check encoder is started
-//        GenVideoAndPlay genVideoAndPlay = new GenVideoAndPlay();
-//        genVideoAndPlay.runTest(sinkSurface);
-
+        GenVideoAndPlay genVideoAndPlay = new GenVideoAndPlay();
+        genVideoAndPlay.startGenVideo(sinkSurface,1280,720);
     }
 
     private void serverBroadMsg(){
