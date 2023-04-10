@@ -173,7 +173,7 @@ class MediaServer implements IMediaServer {
                         continue;
                     }
                     encodeFrameCnt++;
-                    Log.i(TAG, "outBufIndex: " + outBufIndex);
+//                    Log.i(TAG, "outBufIndex: " + outBufIndex);
                     if (isFirstFrame && mNotify != null) {
                         mNotify.onGenerateFirstFrame();
                         isFirstFrame = false;
@@ -183,7 +183,9 @@ class MediaServer implements IMediaServer {
                     if(tmpDataObj != null){
                         videoQue.offer(tmpDataObj);
                     }
-                    Log.i(TAG, " ============= on got frame --1 ! encodeFrameCnt: "+encodeFrameCnt);
+                    if(encodeFrameCnt%10 == 0){
+                        Log.i(TAG, " ============= on got frame ! encodeFrameCnt: "+encodeFrameCnt);
+                    }
                     encoder.releaseOutputBuffer(outBufIndex, false);
                 }
             }
@@ -197,7 +199,7 @@ class MediaServer implements IMediaServer {
 
     private Beans.VideoData genVideoData(MediaCodec.BufferInfo info, ByteBuffer byteBuffer,int videoW, int videoH){
         int dataSize = byteBuffer.remaining();
-        Log.i(TAG, "genVideoData: bufferDataSize: "+dataSize);
+//        Log.i(TAG, "genVideoData: bufferDataSize: "+dataSize);
         if(dataSize < 0){
             return null;
         }

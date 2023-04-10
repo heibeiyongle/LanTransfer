@@ -89,6 +89,10 @@ public class Beans {
             return isConfigFrame;
         }
 
+        public boolean isKeyFrame(){
+            return keyFrame;
+        }
+
         public byte[] getH264Data() {
             return h264Data;
         }

@@ -7,9 +7,10 @@ import com.thunder.common.lib.dto.Beans;
  *
  * @desc:
  */
-public interface ISocketClient {
+public interface  ISocketClient {
 
     void connect(String host, int port , IClientSocCb serverSocCb);
+    void disconnect();
 
     interface IClientSocCb{
         void onConnectSuc(String remoteHost);

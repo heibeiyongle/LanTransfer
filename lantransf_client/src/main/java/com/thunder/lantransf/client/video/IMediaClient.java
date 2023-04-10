@@ -11,7 +11,8 @@ public interface IMediaClient {
     /**
      * connect to server
      */
-    void connectServer();
+    void startToConnectServer();
+    void stopConnect();
 
     void startShow(Surface surface);
     void stopShow();
@@ -33,6 +34,7 @@ public interface IMediaClient {
         void onServerDisConnected();
         void onVideoStart();
         void onVideoStop();
+        void debugInfo(String info);
         void onPlayStateChanged(boolean play);
         void onAccStateChanged(int type);
     }

@@ -12,6 +12,7 @@ public class AbsSocketCommon {
     protected long sendSpeed = 0;
     protected long recSpeed = 0;
     protected long sendLastSecond = 0;
+    protected int printGapMs = 10000;
     protected void printSpeed(String tag , int sendSize,int recSize){
         if(sendSize > 0){
             sendSpeed += sendSize;
@@ -19,11 +20,11 @@ public class AbsSocketCommon {
         if(recSize > 0){
             recSpeed += recSize;
         }
-        if(System.currentTimeMillis()/1000 != sendLastSecond){
-            Log.i(tag, String.format(" [[--Speed--]] |---> %4d kB/s  |<--- %4d kB/s",sendSpeed/1024, recSpeed/1024));
+        if(System.currentTimeMillis()/printGapMs != sendLastSecond){
+            Log.i(tag, String.format(" [[--Speed--]] |---> %4d kB/s  |<--- %4d kB/s",sendSpeed/1024/(printGapMs/1000), recSpeed/1024/(printGapMs/1000)));
             recSpeed = 0;
             sendSpeed = 0;
-            sendLastSecond = System.currentTimeMillis()/1000;
+            sendLastSecond = System.currentTimeMillis()/printGapMs;
         }
     }
 

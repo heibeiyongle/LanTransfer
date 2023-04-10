@@ -30,15 +30,31 @@ public class ClientSocketImpl extends AbsSocketCommon implements ISocketClient {
     private static final String TAG = "ClientSocketImpl";
     IClientSocCb mNotify = null;
     IByteBufferDealer bufferDealer = new ByteBufferCodecImpl();
-
+    boolean mExit = true;
     @Override
     public void connect(String host, int port , IClientSocCb cb) {
         mNotify = cb;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            mExit = false;
             innerStart(host,port);
         }else {
             Log.e(TAG, "startServer failed, Build.VERSION.SDK_INT ["+Build.VERSION.SDK_INT +"] < N(24) ");
         }
+    }
+
+    @Override
+    public void disconnect() {
+        Log.i(TAG, "disconnect");
+        mExit = true;
+        if(selector != null){
+            try {
+                selector.close();
+                socketChannel.close();
+            } catch (Exception e) {
+                Log.e(TAG, "disconnect: ", e);
+            }
+        }
+        Log.i(TAG, "disconnect end.");
     }
 
     @Override
@@ -69,19 +85,21 @@ public class ClientSocketImpl extends AbsSocketCommon implements ISocketClient {
             Object toRemove = target.getToSendMsgQue().poll();
             Log.e(TAG, "publishMsg: client-que-full, so rm first item :"+toRemove );
         }
+        Log.i(TAG, "addMsgToTargetQue ");
         target.getToSendMsgQue().add(msg);
     }
     SocketWrapper client = null;
     Selector selector = null;
+    SocketChannel socketChannel;
     @RequiresApi(api = Build.VERSION_CODES.N)
     private void innerStart(String host, int port){
         try {
-            SocketChannel socketChannel = SocketChannel.open();
+            socketChannel = SocketChannel.open();
             socketChannel.configureBlocking(false);
             socketChannel.connect(new InetSocketAddress(host,port));
             selector = Selector.open();
             socketChannel.register(selector, SelectionKey.OP_CONNECT);
-            while (selector.isOpen()){
+            while (selector.isOpen() && !mExit){
                 int tmp = selector.select(1000);
                 if(tmp <= 0){
                     continue;
@@ -93,15 +111,12 @@ public class ClientSocketImpl extends AbsSocketCommon implements ISocketClient {
                     iterator.remove();
                     if(selectionKey.isConnectable()){
                         SocketChannel tmpSc = (SocketChannel)selectionKey.channel();
-                        if (tmpSc.finishConnect()) {
-                            Socket socket = tmpSc.socket();
-                            mNotify.onConnectSuc(socket.getLocalAddress().getHostAddress());
-                        } else {
-                            mNotify.onClosed();
-                        }
+                        tmpSc.finishConnect();
+                        Socket socket = tmpSc.socket();
                         tmpSc.configureBlocking(false);
                         tmpSc.register(selector,SelectionKey.OP_READ | SelectionKey.OP_WRITE);
                         client = new SocketWrapper(tmpSc);
+                        mNotify.onConnectSuc(socket.getLocalAddress().getHostAddress());
                     }else if(selectionKey.isReadable()){
                         // to read
 //                        Log.i(TAG, " client read able! ");
@@ -147,7 +162,7 @@ public class ClientSocketImpl extends AbsSocketCommon implements ISocketClient {
                             continue;
                         }
                         try {
-//                            Log.i(TAG, " client write-before buf: "+socketWrapper.getWriteBuf().toString() );
+                            Log.i(TAG, " client write-before buf: "+socketWrapper.getWriteBuf().toString() );
                             int res = sc.write(socketWrapper.getWriteBuf());
                             printSpeed(TAG,res,0);
                             if(res < 0){
@@ -161,19 +176,26 @@ public class ClientSocketImpl extends AbsSocketCommon implements ISocketClient {
                     }
                 }
             }
-            mNotify.onClosed();
-        } catch (IOException e) {
+        } catch (Exception e) {
             e.printStackTrace();
+            Log.e(TAG, "innerStart: ", e);
+        }
+        try {
+            mNotify.onClosed();
+            if(client != null){
+                client.getToSendMsgQue().clear();
+            }
+        }catch (Exception e){
             Log.e(TAG, "innerStart: ", e);
         }
     }
 
     private void removeClient(SocketChannel socketChannel){
         Log.i(TAG, "removeClient: sc: "+socketChannel);
-        mNotify.onClosed();
-        if(client != null){
-            client.getToSendMsgQue().clear();
-        }
+//        mNotify.onClosed();
+//        if(client != null){
+//            client.getToSendMsgQue().clear();
+//        }
         client = null;
         if(selector != null){
             try {

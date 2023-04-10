@@ -199,12 +199,14 @@ class TransferServer implements ITransfServer {
         }
         ArrayList<String> res = new ArrayList();
         for (ClientSession tmp:mOusClients) {
-            res.add(tmp.toSampleString());
+//            res.add(tmp.toSampleString());
+            res.add(tmp.toString());
         }
         return res;
     }
 
     private Beans.VideoData mVideoConfigData = null;
+    //private Beans.VideoData mVideoLastIFrameData = null;
 
     class PublishMsgThread extends Thread{
         ArrayBlockingQueue<Object> publishQue;
@@ -247,9 +249,13 @@ class TransferServer implements ITransfServer {
         if(videoData.isConfigFrame()){
             mVideoConfigData = videoData;
         }
+//        if(videoData.isKeyFrame()){
+//            mVideoLastIFrameData = videoData;
+//        }
+
         tmp ++;
         if(tmp%30 == 0){
-            Log.d(TAG, " -----> publishVideo clientCnt: "+mOusClients.size()+" publishVideo-length: "+videoData.getH264Data().length);
+            Log.d(TAG, " -----> i%30 index: "+tmp+" publishVideo clientCnt: "+mOusClients.size()+" publishVideo-length: "+videoData.getH264Data().length);
         }
         // gen videoData with targets
         /*
@@ -273,6 +279,12 @@ class TransferServer implements ITransfServer {
         if(cfgTargets.size()>0){
             mVideoConfigData.setTargets(cfgTargets);
             mSocServer.publishVideo(mVideoConfigData);
+//            //send I frame
+//            mVideoLastIFrameData.setTargets(cfgTargets);
+//            mSocServer.publishVideo(mVideoLastIFrameData);
+            for (String targetId : cfgTargets) {
+                Log.i(TAG, "publishVideo send videoCfg targetId: "+targetId);
+            }
         }
         if(normalVideoTargets.size() > 0){
             videoData.setTargets(normalVideoTargets);

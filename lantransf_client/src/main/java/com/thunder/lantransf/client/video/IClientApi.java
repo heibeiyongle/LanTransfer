@@ -13,9 +13,28 @@ import java.util.Map;
  */
 public interface IClientApi {
 
-    boolean init(Context context);
-    boolean setConfig(Map config);
-    boolean autoConnectServer();
+    boolean init(Context ctx, ClientApi.ClientConfig clientConfig);
+
+
+    /**
+     * 1. find server
+     * 2. connect socket
+     * 3. check surface send video-start
+     * 4. start videoDecodeThread
+     * 5. start msg-handler thread
+     *
+     */
+    boolean toConnectServer();
+
+    /**
+     * stop connect
+     * 1. break socket
+     * 2. stop reg-find
+     * 3. stop decodeThread
+     * 4. stop msg Thread
+      */
+    boolean toDisConnectServer();
+
     boolean startShow(Surface surface);
     boolean stopShow();
 
@@ -35,10 +54,25 @@ public interface IClientApi {
     interface IClientStateChangeCallBack{
         void onRegFind();
         void onFindServer();
+
+        /**
+         * sdk 内部开始decodeThread
+         * decode 依赖项
+         * surface
+         * VideoHead
+         *
+         * --------------
+         *
+         *
+         *
+          */
+
         void onServerConnected(String clientHost);
+
         void onGotClientInfo(String clientName);
-        void onServerDisConnected();
+        void onServerDisConnected();// sdk 内部停止decodeThread
         void onVideoStart();
         void onVideoStop();
+        void onDebugInfo(String info);
     }
 }

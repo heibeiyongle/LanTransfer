@@ -128,7 +128,7 @@ public class VideoDecoder {
                         ByteBuffer byteBuffer = getBuffer(codec, mInputBufferId);
                         byteBuffer.clear();
 
-                        // in ding wei t３, size must lt  byteBuffer.capacity()/2
+                        // in ding wei t3, size must lt  byteBuffer.capacity()/2
                         byte[] buf = frames.take();
 //                        Log.i(TAG, "read cnt:" + buf.length);
                         if (buf.length > 0) {

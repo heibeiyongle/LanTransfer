@@ -48,7 +48,7 @@ public class GenVideoAndPlay {
                 while (true) {
                     generateSurfaceFrame(w,h,generateIndex);
                     inputSurface.setPresentationTime(computePresentationTime(generateIndex) * 1000);
-                    Log.i(TAG, "inputSurface swapBuffers generateIndex: "+ generateIndex);
+//                    Log.i(TAG, "inputSurface swapBuffers generateIndex: "+ generateIndex);
                     inputSurface.swapBuffers();
                     try {
                         Thread.sleep(500);
@@ -71,7 +71,9 @@ public class GenVideoAndPlay {
      * </pre>
      * We draw one of the eight rectangles and leave the rest set to the zero-fill color.     */
     private void generateSurfaceFrame(int mWidth, int mHeight, int frameIndex) {
-        Log.i(TAG, "generateSurfaceFrame: frameIndex: "+frameIndex);
+        if(frameIndex %20 == 0){
+            Log.i(TAG, "generateSurfaceFrame: frameIndex: "+frameIndex);
+        }
         frameIndex %= 8;
 
         int startX, startY;

@@ -9,7 +9,7 @@ public interface ITransferClient {
 
     void init(Context context);
 
-    void connectServer();
+    void startToConnectServer();
     void disconnectServer();
 
     void sendViewActive();

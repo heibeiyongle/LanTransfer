@@ -16,7 +16,6 @@ import com.thunder.lantransf.msg.TransfMsgWrapper;
 import com.thunder.lantransf.msg.codec.CodecUtil;
 
 import java.nio.ByteBuffer;
-import java.util.Arrays;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
@@ -52,6 +51,7 @@ class MediaClient implements IMediaClient{
     IStateChangeCallBack mNotify;
     @Override
     public void init(Context context) {
+        Log.i(TAG, "init: ");
         mCtx = context;
         mTransfClient = new TransfClient();
         mTransfClient.init(context);
@@ -60,9 +60,16 @@ class MediaClient implements IMediaClient{
     }
 
     @Override
-    public void connectServer() {
+    public void startToConnectServer() {
         // search and connect
-        mTransfClient.connectServer();
+        Log.i(TAG, "startToConnectServer: ");
+        mTransfClient.startToConnectServer();
+    }
+
+    @Override
+    public void stopConnect() {
+        Log.i(TAG, "stopConnect: ");
+        mTransfClient.disconnectServer();
     }
 
     @Override
@@ -253,6 +260,7 @@ class MediaClient implements IMediaClient{
         @Override
         public void run() {
             Log.i(TAG, "DecodeThread begin run...");
+            noticeDebug("decode-thread-start");
             Beans.VideoData firstFrame = null;
             while (!mExit){
                 firstFrame = getVideoData(5000);
@@ -260,11 +268,13 @@ class MediaClient implements IMediaClient{
                     continue;
                 }
                 if(!firstFrame.isConfigFrame){
-                    Log.i(TAG, " frame Not-cfg , ignore! ");
+                    Log.i(TAG, " frame Not-cfg , ignore! "+firstFrame);
+                    noticeDebug(" frame Not-cfg , ignore! ");
                     continue;
                 }
                 if (firstFrame != null) {
                     Log.i(TAG, " on got Video-Data! ");
+                    noticeDebug(" on got Video-Data! ");
                     break;
                 }else {
                     Log.i(TAG, " waiting Video-Data! ");
@@ -272,6 +282,7 @@ class MediaClient implements IMediaClient{
             }
             if(mExit){
                 Log.i(TAG, "run: mExit = true! return;");
+                noticeDebug("run: mExit = true! return;");
                 return;
             }
             MediaCodec codec = null;
@@ -341,6 +352,7 @@ class MediaClient implements IMediaClient{
                                 if(!inputFirstFrame){
                                     inputFirstFrame = true;
                                     Log.i(TAG," ---> INPUT FIRST FRAME!");
+                                    noticeDebug("---> INPUT FIRST FRAME!");
                                 }
 //                                Log.i(TAG, "run: input video data, bufferId: "+mInputBufferId);
                                 codec.queueInputBuffer(mInputBufferId, 0, byteBuffer.limit(),
@@ -358,6 +370,7 @@ class MediaClient implements IMediaClient{
                     while (outIndex >= 0 && !mExit) {
                         if(!ifFirstFrameOuted){
                             Log.i(TAG," <---- OUTPUT FIRST FRAME!");
+                            noticeDebug(" <---- OUTPUT FIRST FRAME!");
                             ifFirstFrameOuted = true;
                             if(mNotify != null){
                                 mNotify.onVideoStart();
@@ -397,6 +410,7 @@ class MediaClient implements IMediaClient{
                 Log.i(TAG," == CODEC RELEASE Err!============================  ",e);
             }
             Log.i(TAG, "Decode Thread stop");
+            noticeDebug(" Decode Thread stop ");
         }
 
 
@@ -509,6 +523,11 @@ class MediaClient implements IMediaClient{
     }
 
 
+    private void noticeDebug(String info){
+        if(mNotify != null){
+            mNotify.debugInfo(info);
+        }
+    }
 
 
 }

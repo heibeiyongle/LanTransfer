@@ -2,6 +2,7 @@ package com.thunder.lantransfserver;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.constraintlayout.widget.ConstraintLayout;
 
 import android.os.Bundle;
 import android.os.Handler;
@@ -11,11 +12,9 @@ import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.View;
 import android.widget.FrameLayout;
-import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import com.google.gson.internal.LinkedTreeMap;
-import com.thunder.common.lib.dto.Beans;
 import com.thunder.common.lib.util.GsonUtils;
 import com.thunder.lantransf.client.video.ClientApi;
 import com.thunder.lantransf.client.video.IClientApi;
@@ -93,8 +92,11 @@ public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = "MainActivity";
     SurfaceView mSvClient1;
-    TextView mTvInfo;
-    TextView mTvIMsgnfo;
+    TextView mTvServerInfo;
+    TextView mTvServerMsgInfo;
+
+    TextView mTvClientInfo;
+    TextView mTvClientMsgInfo;
 
     ServerStateInfo mServerInfo = new ServerStateInfo();
     ClientStateInfo mClientInfo = new ClientStateInfo();
@@ -156,7 +158,9 @@ public class MainActivity extends AppCompatActivity {
         mHandler.post(new Runnable() {
             @Override
             public void run() {
-                mTvInfo.setText(mServerInfo.toString()+"\n====\n"+mClientInfo.toString());
+                mServerInfo.clients = ServerApi.getInstance().getClientList();
+                mTvServerInfo.setText(mServerInfo.toString());
+                mTvClientInfo.setText(mClientInfo.toString());
             }
         });
     }
@@ -169,18 +173,26 @@ public class MainActivity extends AppCompatActivity {
 
         findViewById(R.id.v_close).setOnClickListener(clk);
         findViewById(R.id.tv_start_server).setOnClickListener(clk);
+        findViewById(R.id.tv_stop_server).setOnClickListener(clk);
         findViewById(R.id.tv_start_publish_video).setOnClickListener(clk);
         findViewById(R.id.tv_send_msg_play_state).setOnClickListener(clk);
-        mSvBox = findViewById(R.id.fl_sv_box);
+        mSvBox = findViewById(R.id.sv_box);
         mSvClient1 = findViewById(R.id.sv_client);
+
+
+        findViewById(R.id.tv_client_start).setOnClickListener(clk);
+        findViewById(R.id.tv_client_stop).setOnClickListener(clk);
         findViewById(R.id.tv_client_show).setOnClickListener(clk);
         findViewById(R.id.tv_client_hidden).setOnClickListener(clk);
         findViewById(R.id.tv_client_btnckl).setOnClickListener(clk);
         findViewById(R.id.tv_client_get_state).setOnClickListener(clk);
 
-        mTvInfo = findViewById(R.id.tv_info);
-        mTvIMsgnfo = findViewById(R.id.rec_msg_info);
-        initClient1();
+        mTvServerInfo = findViewById(R.id.tv_server_info);
+        mTvServerMsgInfo = findViewById(R.id.rec_msg_info);
+
+        mTvClientInfo = findViewById(R.id.tv_client_info);
+        mTvClientMsgInfo = findViewById(R.id.client_rec_msg_info);
+
     }
 
 
@@ -197,6 +209,10 @@ public class MainActivity extends AppCompatActivity {
                     startServer();
                     break;
                 }
+                case R.id.tv_stop_server:{
+//                    stop
+                    break;
+                }
                 case R.id.tv_start_publish_video:{
                     startPublish();
                     break;
@@ -207,6 +223,16 @@ public class MainActivity extends AppCompatActivity {
                 }
 
                 // client
+                case R.id.tv_client_start:{
+                    initClient1();
+                    break;
+                }
+                case R.id.tv_client_stop:{
+                    if(clientApi1 != null){
+                        clientApi1.toDisConnectServer();
+                    }
+                    break;
+                }
                 case R.id.tv_client_show:{
                     startShow();
                     break;
@@ -279,14 +305,24 @@ public class MainActivity extends AppCompatActivity {
         playState.playing = true;
         String tmpStr = CodecUtil.encodeMsg(playState);
         ServerApi.getInstance().sendMsg(null,tmpStr);
-        printMsg("server -> send play state ");
+        printServerMsg("server -> send play state ");
     }
 
-    private void printMsg(String text){
+    // serverMsg
+    private void printServerMsg(String text){
         mHandler.post(new Runnable() {
             @Override
             public void run() {
-                mTvIMsgnfo.append(text+"\n");
+                mTvServerMsgInfo.setText(text+"\n"+mTvServerMsgInfo.getText());
+            }
+        });
+    }
+
+    private void printClientMsg(String text){
+        mHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                mTvClientMsgInfo.setText(text+"\n"+mTvClientMsgInfo.getText());
             }
         });
     }
@@ -299,7 +335,7 @@ public class MainActivity extends AppCompatActivity {
             Log.d(TAG, " Server -> onGetMsg() called with: msg = [" + msg + "], from = [" + from + "]");
             TransfMsgWrapper msgWrapper = CodecUtil.decodeMsg(msg);
             String msgType = msgWrapper.getMsgClassName();
-            printMsg("server <- get "+msgType);
+            printServerMsg("server <- get "+msgType);
             if(CmdMsg.ReqCommon.class.getSimpleName().equals(msgType)){
                 CmdMsg.ReqCommon tmpMsg = GsonUtils.parseFromLinkedTreeMap(
                     (LinkedTreeMap) msgWrapper.getMsg(), CmdMsg.ReqCommon.class);
@@ -342,19 +378,21 @@ public class MainActivity extends AppCompatActivity {
 //========================================================================================
 
     View mSvBox = null;
-
+    private Surface mSurface;
     ClientApi clientApi1;
     private void initClient1(){
+        Log.i(TAG, "initClient1: ");
         // 自动开始  鲁棒性
         clientApi1 = ClientApi.getInstance();
-        clientApi1.init(MainActivity.this);
-        clientApi1.autoConnectServer();
+        clientApi1.init(MainActivity.this,new ClientApi.ClientConfig.Builder().setAutoReconnect(true).build());
+//        clientApi1.toConnectServer();
         clientApi1.setStateChangeCallBack(mClientApiCb);
-
         mSvClient1.getHolder().addCallback(new SurfaceHolder.Callback() {
             @Override
             public void surfaceCreated(@NonNull SurfaceHolder surfaceHolder) {
+                Log.i(TAG, "surfaceCreated: ");
                 clientApi1.startShow(surfaceHolder.getSurface());
+                mSurface = surfaceHolder.getSurface();
             }
 
             @Override
@@ -365,6 +403,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void surfaceDestroyed(@NonNull SurfaceHolder surfaceHolder) {
                 clientApi1.stopShow();
+                mSurface = null;
             }
         });
 
@@ -377,7 +416,7 @@ public class MainActivity extends AppCompatActivity {
             Log.d(TAG, " Client --> onGetMsg() called with: msg = [" + msg + "], from = [" + from + "]");
             TransfMsgWrapper wrapper = CodecUtil.decodeMsg(msg);
             String msgType = wrapper.getMsgClassName();
-            printMsg("client <- get "+msgType);
+            printClientMsg("client <- get "+msgType);
             if(CmdMsg.ResAccState.class.getSimpleName().equals(msgType)){
                 CmdMsg.ResAccState tmpMsg = GsonUtils.parseFromLinkedTreeMap(
                         (LinkedTreeMap) wrapper.getMsg(), CmdMsg.ResAccState.class);
@@ -404,7 +443,7 @@ public class MainActivity extends AppCompatActivity {
         reqCommon.type = CmdMsg.ReqCommon.Type.getPlayState.name();
         String tmpStr = CodecUtil.encodeMsg(reqCommon);
         clientApi1.sendMsg(null,tmpStr);
-        printMsg("client -> send getPlayState ");
+        printClientMsg("client -> send getPlayState ");
     }
 
     private void sendBtnClickMsgToServer(){
@@ -412,7 +451,7 @@ public class MainActivity extends AppCompatActivity {
         clkAct.clickType = CmdMsg.ReqUserClickAction.Type.ACC_BTN.name();
         String tmpStr = CodecUtil.encodeMsg(clkAct);
         clientApi1.sendMsg(null,tmpStr);
-        printMsg("client -> send ACC_BTN ");
+        printClientMsg("client -> send ACC_BTN ");
     }
 
 
@@ -420,44 +459,49 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         public void onRegFind() {
-            Log.d(TAG, "onRegFind() called");
+            Log.i(TAG, "onRegFind() called");
             mClientInfo.clientState = "onRegFind";
             updateInfo();
         }
 
         @Override
         public void onFindServer() {
-            Log.d(TAG, "onFindServer() called");
+            Log.i(TAG, "onFindServer() called");
             mClientInfo.clientState = "onFindServer";
             updateInfo();
         }
 
         @Override
         public void onServerConnected(String clientHost) {
-            Log.d(TAG, "onServerConnected() called");
+            Log.i(TAG, "onServerConnected() called");
             mClientInfo.clientState = "onServerConnected";
             mClientInfo.clientHost = clientHost;
+            if(mSurface!=null){
+                // auto start show
+                clientApi1.startShow(mSurface);
+            }
             updateInfo();
         }
 
         @Override
         public void onGotClientInfo(String clientName) {
-            Log.d(TAG, "onGotClientInfo() called with: clientName = [" + clientName + "]");
+            Log.i(TAG, "onGotClientInfo() called with: clientName = [" + clientName + "]");
             mClientInfo.clientName = clientName;
             updateInfo();
         }
 
         @Override
         public void onServerDisConnected() {
-            Log.d(TAG, "onServerDisConnected() called");
+            Log.i(TAG, "onServerDisConnected() called");
             mClientInfo.clientState = "onServerDisConnected";
+            clientApi1.stopShow();
             updateInfo();
         }
 
         @Override
         public void onVideoStart() {
-            Log.d(TAG, "onVideoStart() called");
-            mClientInfo.videoState = "onVideoStart";
+            Log.i(TAG, "onVideoStart() called");
+            mClientInfo.videoState = "V--Start";
             updateInfo();
             mHandler.post(new Runnable() {
                 @Override
@@ -481,7 +525,7 @@ public class MainActivity extends AppCompatActivity {
                         destH = maxH;
                         destW = (int) (400f/300*destH);
                     }
-                    FrameLayout.LayoutParams llp = (FrameLayout.LayoutParams) mSvClient1.getLayoutParams();
+                    ConstraintLayout.LayoutParams llp = (ConstraintLayout.LayoutParams) mSvClient1.getLayoutParams();
                     llp.width = destW;
                     llp.height = destH;
                     mSvClient1.setLayoutParams(llp);
@@ -491,18 +535,23 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         public void onVideoStop() {
-            Log.d(TAG, "onVideoStop() called");
-            mClientInfo.videoState = "onVideoStop";
+            Log.i(TAG, "onVideoStop() called");
+            mClientInfo.videoState = "V--Stop";
             updateInfo();
             mHandler.post(new Runnable() {
                 @Override
                 public void run() {
-                    FrameLayout.LayoutParams llp = (FrameLayout.LayoutParams) mSvClient1.getLayoutParams();
-                    llp.width = 1;
-                    llp.height = 1;
+                    ConstraintLayout.LayoutParams llp = (ConstraintLayout.LayoutParams) mSvClient1.getLayoutParams();
+                    llp.width = 100;
+                    llp.height = 100;
                     mSvClient1.setLayoutParams(llp);
                 }
             });
+        }
+
+        @Override
+        public void onDebugInfo(String info) {
+            printClientMsg("debug: "+info);
         }
     };
 }

@@ -21,14 +21,35 @@ import java.util.HashSet;
  * @desc:
  */
 public class TransfClient implements ITransferClient{
-
     private static final String TAG = "TransfClient";
 
+    public enum TransState{
+        NONE,
+        INITED,
+        TO_FIND_SERVER,
+        SEARCHING_SERVER,
+        RESOLVING,
+        RESOLVED,
+        CONNECTING,
+        CONNECTED
+    }
 
     Context mCtx;
     NsdManager mNsdManager;
     IClientDataHandler mClientDataHandler;
     IClientStateHandler mClientStateHandler;
+    TransState mCurrState = TransState.NONE;
+    private boolean isInited = false;
+
+    private void updateState(TransState state){
+        Log.i(TAG, "updateState: "+mCurrState+" --> "+state);
+        mCurrState = state;
+    }
+
+    private boolean checkState(TransState targetState){
+        Log.i(TAG, "checkState: match: "+mCurrState.equals(targetState)+" nowState: "+mCurrState+", wanted: "+targetState);
+        return mCurrState.equals(targetState);
+    }
 
     /**
      * 1. search nsd
@@ -40,18 +61,24 @@ public class TransfClient implements ITransferClient{
      *
      * @param context
      */
-
-
     @Override
     public void init(Context context) {
         mCtx = context;
+        //todo fix cost 200ms
+        long startMs = System.currentTimeMillis();
         mNsdManager = (NsdManager) mCtx.getSystemService(Context.NSD_SERVICE);
+        Log.i(TAG, "init: costMS: "+(System.currentTimeMillis() - startMs));
+        updateState(TransState.INITED);
     }
 
     @Override
-    public void connectServer() {
+    public void startToConnectServer() {
         if(mIsConnected){
             Log.i(TAG, "connectServer: soc already connected ! return!");
+            return;
+        }
+        if(!checkState(TransState.INITED)){
+            Log.i(TAG, "startToConnectServer: already connecting , return! ");
             return;
         }
         initializeDiscoveryListener();
@@ -59,11 +86,23 @@ public class TransfClient implements ITransferClient{
 
     @Override
     public void disconnectServer() {
-        // todo
+        Log.i(TAG, "disconnectServer: ");
+        if(!checkState(TransState.NONE)){
+            updateState(TransState.INITED);
+        }
+        if(discoveryListener != null){
+            mNsdManager.stopServiceDiscovery(discoveryListener);
+            discoveryListener = null;
+        }
+        if(mIsConnected){
+            // disconnected
+            mSocketClient.disconnect();
+        }
     }
 
     @Override
     public void sendViewActive() {
+        Log.i(TAG, "sendViewActive: ");
         Beans.TransfPkgMsg.VideoChannelState state = new Beans.TransfPkgMsg.VideoChannelState();
         state.active = true;
         addInnerMsgToQue(state,0);
@@ -116,28 +155,46 @@ public class TransfClient implements ITransferClient{
 
 
     NsdServiceInfo targetServiceInfo = null;
+    NsdManager.DiscoveryListener discoveryListener;
     public void initializeDiscoveryListener() {
         Log.d(TAG, "initializeDiscoveryListener() called");
-        NsdManager.DiscoveryListener discoveryListener = new NsdManager.DiscoveryListener() {
-
+        updateState(TransState.TO_FIND_SERVER);
+        if(discoveryListener != null){
+            mNsdManager.stopServiceDiscovery(discoveryListener);
+            discoveryListener = null;
+        }
+        discoveryListener = new NsdManager.DiscoveryListener() {
             @Override
             public void onDiscoveryStarted(String regType) {
                 Log.i(TAG, "Service discovery started");
+                if(!checkState(TransState.TO_FIND_SERVER)){
+                    Log.i(TAG, "onDiscoveryStarted: state missMatch, return!");
+                    return;
+                }
                 mClientStateHandler.onRegFindService();
+                updateState(TransState.SEARCHING_SERVER);
             }
 
             @Override
             public void onServiceFound(NsdServiceInfo service) {
-                Log.i(TAG, "Service discovery success" + service);
+                Log.i(TAG, "Service discovery success " + service);
                 if (!service.getServiceType().equals(NSD_SERVICE_TYPE_TCP)) {
                     // Service type is the string containing the protocol and
                     // transport layer for this service.
                     Log.i(TAG, "Unknown Service Type: " + service.getServiceType());
                 } else if (service.getServiceName().equals(NSD_CONTROL_SERVICE_NAME)) {
-                    if(targetServiceInfo == null){
+                    if(!mIsConnected && !isResolvelIng){
+                        if(!checkState(TransState.SEARCHING_SERVER)){
+                            Log.i(TAG, "onServiceFound: state missMatch, return!");
+                            return;
+                        }
+                        updateState(TransState.RESOLVING);
+                        isResolvelIng = true;
                         mClientStateHandler.onFindServerService();
                         targetServiceInfo = service;
+                        mNsdManager.stopServiceDiscovery(discoveryListener);
                         mNsdManager.resolveService(service, mResolveL);
+                        discoveryListener = null;
                     }
                 }
             }
@@ -156,30 +213,38 @@ public class TransfClient implements ITransferClient{
             public void onStartDiscoveryFailed(String serviceType, int errorCode) {
                 Log.e(TAG, "Discovery failed: Error code:" + errorCode);
                 mNsdManager.stopServiceDiscovery(this);
+                discoveryListener = null;
             }
 
             @Override
             public void onStopDiscoveryFailed(String serviceType, int errorCode) {
                 Log.e(TAG, "Discovery failed: Error code:" + errorCode);
                 mNsdManager.stopServiceDiscovery(this);
+                discoveryListener = null;
             }
         };
-
         mNsdManager.discoverServices(
                 NSD_SERVICE_TYPE_TCP, NsdManager.PROTOCOL_DNS_SD, discoveryListener);
 
     }
 
     private String mServerHost = "";
+    private boolean isResolvelIng = false;
     NsdManager.ResolveListener mResolveL = new NsdManager.ResolveListener() {
         @Override
         public void onResolveFailed(NsdServiceInfo serviceInfo, int errorCode) {
             Log.i(TAG, "onResolveFailed() called with: serviceInfo = [" + serviceInfo + "], errorCode = [" + errorCode + "]");
+            isResolvelIng = false;
         }
 
         @Override
         public void onServiceResolved(NsdServiceInfo serviceInfo) {
             Log.i(TAG, "onServiceResolved() called with: serviceInfo = [" + serviceInfo + "]");
+            if(!checkState(TransState.RESOLVING)){
+                Log.i(TAG, "onServiceResolved: state missMatch, return!");
+                return;
+            }
+            updateState(TransState.RESOLVED);
             String host = serviceInfo.getHost().getHostAddress();
             int port =serviceInfo.getPort();
             mServerHost = host;
@@ -189,6 +254,7 @@ public class TransfClient implements ITransferClient{
             }else {
                 Log.i(TAG, "onServiceResolved , but socket is connected, ignore! host: "+host);
             }
+            isResolvelIng = false;
         }
     };
 
@@ -196,14 +262,23 @@ public class TransfClient implements ITransferClient{
     ISocketClient.IClientSocCb mInnerClientCb = new ISocketClient.IClientSocCb() {
         @Override
         public void onConnectSuc(String remoteHost) {
+            if(!checkState(TransState.CONNECTING)){
+                Log.i(TAG, "onConnectSuc: state missMatch, disconnect it!");
+                mSocketClient.disconnect();
+                return;
+            }
             mIsConnected = true;
             mClientStateHandler.onConnect(remoteHost);
+            updateState(TransState.CONNECTED);
         }
 
         @Override
         public void onClosed() {
             mIsConnected = false;
             mClientStateHandler.onDisconnect();
+            if(!checkState(TransState.NONE)){
+                updateState(TransState.INITED);
+            }
         }
 
         @Override
@@ -227,6 +302,7 @@ public class TransfClient implements ITransferClient{
             public void run() {
                 super.run();
                 mSocketClient = new ClientSocketImpl();
+                updateState(TransState.CONNECTING);
                 mSocketClient.connect(host,port,mInnerClientCb);
             }
         }.start();
@@ -235,6 +311,7 @@ public class TransfClient implements ITransferClient{
 
 
     private void addInnerMsgToQue(Object msg, int target) {
+        Log.i(TAG, "addInnerMsgToQue: ");
         if(msg instanceof Beans.TransfPkgMsg) throw new RuntimeException(" sendObjectCmd msg should not be CommandMsg.class");
         if( !mIsConnected ){
             Log.i(TAG, "addInnerMsgToQue mIsConnected = false , return! ");

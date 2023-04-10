@@ -140,10 +140,12 @@ public class SocketServerImpl extends AbsSocketCommon implements ISocketServer{
                             if(readLen < 0){
                                 Log.i(TAG, " client ["+socketWrapper.getClientName()+"] lost, remove it! For read : "+readLen+"");
                                 removeClient(sc);
+                                continue;
                             }
                         }catch (Exception e){
                             Log.e(TAG, " socket read-err, remove client["+socketWrapper.getClientName()+"], errInfo: ", e);
                             removeClient(sc);
+                            continue;
                         }
 
                         Object res = bufferDealer.decodeReadBuf(socketWrapper.getReadBuf());
@@ -178,6 +180,7 @@ public class SocketServerImpl extends AbsSocketCommon implements ISocketServer{
                         }catch (Exception e){
                             Log.e(TAG, " write-data-err, remove client ["+socketWrapper.getClientName()+ "] ",e);
                             removeClient(sc);
+                            continue;
                         }
                     }
                 }
