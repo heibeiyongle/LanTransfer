@@ -9,6 +9,7 @@ import android.net.nsd.NsdServiceInfo;
 import android.util.Log;
 
 import com.thunder.common.lib.dto.Beans;
+import com.thunder.lantransf.client.state.ClientStateManager;
 import com.thunder.lantransf.client.video.socketclient.ISocketClient;
 import com.thunder.lantransf.client.video.socketclient.ClientSocketImpl;
 import com.thunder.lantransf.msg.codec.CodecUtil;
@@ -284,6 +285,12 @@ public class TransfClient implements ITransferClient{
         @Override
         public void onGotCmdMsg(Beans.TransfPkgMsg msg) {
             Log.i(TAG, "onGotJsonMsg: msg:"+msg);
+            msg.setNetTimeAfterDecode(ClientStateManager.getInstance().getNetInfo().getCurrNetTimeMs());
+            // print costMs
+            if(Math.abs(msg.getPackCostMs()) > 100){// 当 >100ms print log
+                String costStr = msg.getTransDelayInfo();
+                Log.i(TAG, " POCKET-DELAY : "+costStr);
+            }
             mClientDataHandler.onGotCmdData(msg);
         }
 
@@ -324,7 +331,8 @@ public class TransfClient implements ITransferClient{
     }
 
     private void addMsgToQue(String msgStr,HashSet<String> targets,boolean outerMsg){
-        Beans.TransfPkgMsg destMsg = Beans.TransfPkgMsg.Builder.genSpecTargetsMsg(msgStr,targets,outerMsg?0:1);
+        Beans.TransfPkgMsg destMsg = Beans.TransfPkgMsg.Builder.genSpecTargetsMsg(msgStr,targets,outerMsg?0:1,
+                ClientStateManager.getInstance().getNetInfo().getCurrNetTimeMs());
         mSocketClient.sendMsg(destMsg);
     }
 

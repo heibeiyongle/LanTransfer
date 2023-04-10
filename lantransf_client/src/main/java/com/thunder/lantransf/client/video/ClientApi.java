@@ -5,6 +5,7 @@ import android.util.Log;
 import android.view.Surface;
 
 import com.thunder.common.lib.dto.Beans;
+import com.thunder.lantransf.client.state.ClientStateManager;
 
 import java.util.HashSet;
 import java.util.List;
@@ -111,7 +112,8 @@ public class ClientApi implements IClientApi{
             destTarget = new HashSet<>();
             destTarget.addAll(targets);
         }
-        mInnerClient.sendMsg(Beans.TransfPkgMsg.Builder.genSpecTargetsMsg(msg,destTarget,0));
+        mInnerClient.sendMsg(Beans.TransfPkgMsg.Builder.genSpecTargetsMsg(msg,destTarget,0,
+                ClientStateManager.getInstance().getNetInfo().getCurrNetTimeMs()));
     }
 
     @Override

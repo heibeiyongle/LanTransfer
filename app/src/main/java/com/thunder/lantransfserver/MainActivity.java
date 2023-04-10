@@ -439,11 +439,28 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void sendGetPlayStateMsgToServer(){
-        CmdMsg.ReqCommon reqCommon = new CmdMsg.ReqCommon();
-        reqCommon.type = CmdMsg.ReqCommon.Type.getPlayState.name();
-        String tmpStr = CodecUtil.encodeMsg(reqCommon);
-        clientApi1.sendMsg(null,tmpStr);
         printClientMsg("client -> send getPlayState ");
+        new Thread(){
+            @Override
+            public void run() {
+                super.run();
+                int count = 100;
+                while (count -- > 0){
+                    CmdMsg.ReqCommon reqCommon = new CmdMsg.ReqCommon();
+                    reqCommon.type = CmdMsg.ReqCommon.Type.getPlayState.name();
+                    String tmpStr = CodecUtil.encodeMsg(reqCommon);
+                    clientApi1.sendMsg(null,tmpStr);
+                    try {
+                        Thread.sleep(300);
+                        Log.i(TAG, "run: count: "+count);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        }.start();
+
+
     }
 
     private void sendBtnClickMsgToServer(){

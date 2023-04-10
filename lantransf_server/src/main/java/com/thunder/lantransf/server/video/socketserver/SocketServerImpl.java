@@ -13,6 +13,7 @@ import com.thunder.common.lib.transf.nio.SocketWrapper;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.net.StandardSocketOptions;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
@@ -109,7 +110,12 @@ public class SocketServerImpl extends AbsSocketCommon implements ISocketServer{
             Selector selector = Selector.open();
             ssc.register(selector, SelectionKey.OP_ACCEPT);
             while (selector.isOpen()){
+                long tmpStartMs = System.currentTimeMillis();
+
                 int tmp = selector.select(1000);
+                if((System.currentTimeMillis() - tmpStartMs) > 100){
+                    Log.i(TAG, "innerStart: selector wake, key-count:"+tmp+" cost-Ms: "+(System.currentTimeMillis() - tmpStartMs));
+                }
                 if(tmp <= 0){
                     continue;
                 }
@@ -119,15 +125,19 @@ public class SocketServerImpl extends AbsSocketCommon implements ISocketServer{
                     SelectionKey selectionKey = iterator.next();
                     iterator.remove();
                     if(selectionKey.isAcceptable()){
+                        Log.i(TAG, "innerStart: isAcceptable");
                         ServerSocketChannel serverC = (ServerSocketChannel) selectionKey.channel();
                         SocketChannel sc = serverC.accept();
                         sc.configureBlocking(false);
+                        Log.i(TAG, "innerStart: sc.getOption(StandardSocketOptions.TCP_NODELAY): "+sc.getOption(StandardSocketOptions.TCP_NODELAY));
+                        Log.i(TAG, "innerStart--read: SO_SNDBUF/REC: "+sc.getOption(StandardSocketOptions.SO_SNDBUF)+" / "+sc.getOption(StandardSocketOptions.SO_RCVBUF));
                         sc.register(selector,SelectionKey.OP_READ | SelectionKey.OP_WRITE);
                         SocketWrapper sw = new SocketWrapper(sc);
                         sw.setClientName(genClientName());
                         clientsMap.put(sc,sw);
                         mNotify.onGotClient(sw.getClientName(),sc.socket().getLocalAddress().getHostName());
                     }else if(selectionKey.isReadable()){
+//                        Log.i(TAG, "innerStart: isReadable");
                         // to read
                         SocketChannel sc = (SocketChannel) selectionKey.channel();
                         SocketWrapper socketWrapper = clientsMap.get(sc);
@@ -142,23 +152,28 @@ public class SocketServerImpl extends AbsSocketCommon implements ISocketServer{
                                 removeClient(sc);
                                 continue;
                             }
+//                            Log.i(TAG, "innerStart--read: SO_SNDBUF/REC: "+sc.getOption(StandardSocketOptions.SO_SNDBUF)+" / "+sc.getOption(StandardSocketOptions.SO_RCVBUF));
                         }catch (Exception e){
                             Log.e(TAG, " socket read-err, remove client["+socketWrapper.getClientName()+"], errInfo: ", e);
                             removeClient(sc);
                             continue;
                         }
-
-                        Object res = bufferDealer.decodeReadBuf(socketWrapper.getReadBuf());
-                        if(res == null){
-                            continue;
-                        }else if(res instanceof Beans.VideoData){
-                            // nothing
-                        }else if(res instanceof Beans.TransfPkgMsg){
-                            mNotify.onGotCmdMsg(socketWrapper.getClientName(), (Beans.TransfPkgMsg) res);
-                        }else if(res instanceof ByteBuffer){
-                            socketWrapper.setReadBuf( (ByteBuffer) res);
+                        Object tmpMsg = null;
+                        int i = 0;
+//                        Log.i(TAG, "innerStart before-decode: readBuf: "+socketWrapper.getReadBuf());
+                        while (socketWrapper.getReadBuf().position() > 0 &&
+                                (tmpMsg = bufferDealer.decodeReadBuf(socketWrapper.getReadBuf())) != null){
+//                            Log.i(TAG, "innerStart decode-index: "+(i++)+" readBuf: "+socketWrapper.getReadBuf());
+                            if(tmpMsg instanceof Beans.VideoData){
+                                // nothing
+                            }else if(tmpMsg instanceof Beans.TransfPkgMsg){
+                                mNotify.onGotCmdMsg(socketWrapper.getClientName(), (Beans.TransfPkgMsg) tmpMsg);
+                            }else if(tmpMsg instanceof ByteBuffer){
+                                socketWrapper.setReadBuf( (ByteBuffer) tmpMsg);
+                            }
                         }
                     }else if(selectionKey.isWritable()){
+//                        Log.i(TAG, "innerStart: isWritable");
                         SocketChannel sc = (SocketChannel) selectionKey.channel();
                         SocketWrapper socketWrapper = clientsMap.get(sc);
                         if(socketWrapper == null){
@@ -173,16 +188,22 @@ public class SocketServerImpl extends AbsSocketCommon implements ISocketServer{
                             continue;
                         }
                         try {
-//                            Log.i(TAG, "server write-before buf: "+socketWrapper.writeBuf);
+//                            Log.i(TAG, "server-2 write-before buf: "+socketWrapper.getWriteBuf());
                             int res = sc.write(socketWrapper.getWriteBuf());
                             printSpeed(TAG,res,0);
-//                            Log.i(TAG, "server write-end len: " +res+", buf: "+socketWrapper.writeBuf);
+                            // note: que size always 0, 说明发送端没有浪费时间
+                            // 目前存在延迟，sc write 出去， 到 sc read 后， costMs > 400ms, 当消息密集的时候
+//                            Log.i(TAG, "server write-end toSendQueSize: "+socketWrapper.getToSendMsgQue().size()+" len: " +res+", buf: "+socketWrapper.getWriteBuf());
+//                            Log.i(TAG, "innerStart--write: SO_SNDBUF/REC: "+sc.getOption(StandardSocketOptions.SO_SNDBUF)+" / "+sc.getOption(StandardSocketOptions.SO_RCVBUF));
                         }catch (Exception e){
                             Log.e(TAG, " write-data-err, remove client ["+socketWrapper.getClientName()+ "] ",e);
                             removeClient(sc);
                             continue;
                         }
                     }
+                }
+                if(System.currentTimeMillis() - tmpStartMs > 100){
+                    Log.i(TAG, "innerStart: per-loop-COST-LONG(>100ms) cost-Ms: "+(System.currentTimeMillis() - tmpStartMs));
                 }
             }
         } catch (IOException e) {

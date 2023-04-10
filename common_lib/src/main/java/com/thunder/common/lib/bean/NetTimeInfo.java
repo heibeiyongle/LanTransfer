@@ -9,7 +9,7 @@ public class NetTimeInfo {
     private long mLocalTimeMs;
     private long mTransfCostTime;
 
-    public long getNetTimeMs() {
+    private long getNetTimeMs() {
         return mNetTimeMs;
     }
 

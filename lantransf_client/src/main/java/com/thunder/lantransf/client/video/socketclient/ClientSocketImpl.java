@@ -14,6 +14,7 @@ import com.thunder.common.lib.transf.nio.SocketWrapper;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.net.StandardSocketOptions;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
@@ -96,6 +97,7 @@ public class ClientSocketImpl extends AbsSocketCommon implements ISocketClient {
         try {
             socketChannel = SocketChannel.open();
             socketChannel.configureBlocking(false);
+            socketChannel.setOption(StandardSocketOptions.TCP_NODELAY, true);
             socketChannel.connect(new InetSocketAddress(host,port));
             selector = Selector.open();
             socketChannel.register(selector, SelectionKey.OP_CONNECT);
@@ -117,6 +119,10 @@ public class ClientSocketImpl extends AbsSocketCommon implements ISocketClient {
                         tmpSc.register(selector,SelectionKey.OP_READ | SelectionKey.OP_WRITE);
                         client = new SocketWrapper(tmpSc);
                         mNotify.onConnectSuc(socket.getLocalAddress().getHostAddress());
+                        Log.i(TAG, "innerStart: sc.getOption(StandardSocketOptions.TCP_NODELAY): "+
+                                tmpSc.getOption(StandardSocketOptions.TCP_NODELAY));
+                        Log.i(TAG, "innerStart--read-client: SO_SNDBUF/REC: "+
+                                tmpSc.getOption(StandardSocketOptions.SO_SNDBUF)+" / "+tmpSc.getOption(StandardSocketOptions.SO_RCVBUF));
                     }else if(selectionKey.isReadable()){
                         // to read
 //                        Log.i(TAG, " client read able! ");
@@ -128,6 +134,7 @@ public class ClientSocketImpl extends AbsSocketCommon implements ISocketClient {
                         try {
 //                            Log.i(TAG, " client-read-before: buf: "+socketWrapper.readBuf);
                             int readLen = sc.read(socketWrapper.getReadBuf());
+//                            Log.i(TAG, "innerStart--read-client: SO_SNDBUF/REC: "+sc.getOption(StandardSocketOptions.SO_SNDBUF)+" / "+sc.getOption(StandardSocketOptions.SO_RCVBUF));
 //                            Log.i(TAG, " client-read-end: buf: "+socketWrapper.readBuf);
                             printSpeed(TAG,0,readLen);
                             if(readLen < 0){
@@ -138,16 +145,20 @@ public class ClientSocketImpl extends AbsSocketCommon implements ISocketClient {
                             Log.e(TAG, " socket read-err, remove client["+socketWrapper.getClientName()+"], errInfo: ", e);
                             removeClient(sc);
                         }
-
-                        Object res = bufferDealer.decodeReadBuf(socketWrapper.getReadBuf());
-                        if(res == null){
-                            continue;
-                        }else if(res instanceof Beans.VideoData){
-                            mNotify.onGotVideoMsg((Beans.VideoData) res);
-                        }else if(res instanceof Beans.TransfPkgMsg){
-                            mNotify.onGotCmdMsg((Beans.TransfPkgMsg) res);
-                        }else if(res instanceof ByteBuffer){
-                            socketWrapper.setReadBuf((ByteBuffer) res);
+                        Object tmpMsg = null;
+//                        int i = 0;
+//                        Log.i(TAG, "innerStart before-decode: readBuf: "+socketWrapper.getReadBuf());
+                        while (socketWrapper.getReadBuf().position() > 0 &&
+                                (tmpMsg = bufferDealer.decodeReadBuf(socketWrapper.getReadBuf())) != null) {
+//                            Log.i(TAG, "innerStart decode-index: " + (i++) + " readBuf: " + socketWrapper.getReadBuf());
+                            if(tmpMsg instanceof Beans.VideoData){
+                                mNotify.onGotVideoMsg((Beans.VideoData) tmpMsg);
+                            }else if(tmpMsg instanceof Beans.TransfPkgMsg){
+                                // 打印接收时间
+                                mNotify.onGotCmdMsg((Beans.TransfPkgMsg) tmpMsg);
+                            }else if(tmpMsg instanceof ByteBuffer){
+                                socketWrapper.setReadBuf((ByteBuffer) tmpMsg);
+                            }
                         }
                     }else if(selectionKey.isWritable()){
                         SocketChannel sc = (SocketChannel) selectionKey.channel();
@@ -162,7 +173,8 @@ public class ClientSocketImpl extends AbsSocketCommon implements ISocketClient {
                             continue;
                         }
                         try {
-                            Log.i(TAG, " client write-before buf: "+socketWrapper.getWriteBuf().toString() );
+//                            Log.i(TAG, " client-1 write-before buf: "+socketWrapper.getWriteBuf().toString() );
+//                            Log.i(TAG, "innerStart--write: SO_SNDBUF/REC: "+sc.getOption(StandardSocketOptions.SO_SNDBUF)+" / "+sc.getOption(StandardSocketOptions.SO_RCVBUF));
                             int res = sc.write(socketWrapper.getWriteBuf());
                             printSpeed(TAG,res,0);
                             if(res < 0){

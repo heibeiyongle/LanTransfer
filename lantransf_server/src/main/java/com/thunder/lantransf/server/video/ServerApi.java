@@ -70,7 +70,7 @@ public class ServerApi implements IServerApi {
             return;
         }
         ServerManager.getInstance().mMsgDealer.sendCmd(
-                Beans.TransfPkgMsg.Builder.genSpecTargetsMsg(msg,destTarget,0));
+                Beans.TransfPkgMsg.Builder.genSpecTargetsMsg(msg,destTarget,0,System.currentTimeMillis()));
     }
 
     @Override

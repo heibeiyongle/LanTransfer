@@ -121,6 +121,12 @@ class TransferServer implements ITransfServer {
         @Override
         public void onGotCmdMsg(String clientName, Beans.TransfPkgMsg msg) {
             Log.i(TAG, "onGotJsonMsg: msg:"+msg);
+            // print costMs
+            msg.setNetTimeAfterDecode(System.currentTimeMillis());
+            if(msg.getPackCostMs() > 100){// 当 >100ms print log
+                String costStr = msg.getTransDelayInfo();
+                Log.i(TAG, " POCKET-DELAY : "+costStr);
+            }
             dealJsonMsg(msg,clientName);
         }
     };

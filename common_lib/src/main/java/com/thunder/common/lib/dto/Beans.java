@@ -124,20 +124,39 @@ public class Beans {
 
         private int formatType; // 0 string 1 byte[]
         private byte[] payload;
+        private int packIndex;
+        private long packGenNetMs; // msg 生成的网络时间
+        private long packGenLocalMs; // msg 生成的本地时间
+        private long packEncodeNetMs; // 发送之前的网络时间
+        private long decodeLocalMs;
+        private long decodeNetMs;
 
+        public String getTransDelayInfo(){
+            return " packIndex:"+packIndex+" packCost(Ms): "+getPackCostMs()+
+                    ", transCost(Ms): "+getTransCostMs()+
+                    ", packGenNetMs: "+packGenNetMs+", packEncodeNetMs: "+packEncodeNetMs+" decodeNetMs: "+decodeNetMs;
+        }
+
+        public long getPackCostMs(){
+            return decodeNetMs - packGenNetMs;
+        }
+
+        public long getTransCostMs(){
+            return decodeNetMs - packEncodeNetMs;
+        }
 
         public static class Builder{
-            public static TransfPkgMsg genBroadCastMsg(String msg,int srcT){
+            public static TransfPkgMsg genBroadCastMsg(String msg,int srcT, long netTimeMs){
                 checkEmpty(msg);
-                return new TransfPkgMsg(strToBytes(msg),0,srcT);
+                return new TransfPkgMsg(strToBytes(msg),0,srcT,netTimeMs);
             }
-            public static TransfPkgMsg genP2PMsg(String msg, String target, int srcT){
+            public static TransfPkgMsg genP2PMsg(String msg, String target, int srcT, long netTimeMs){
                 checkEmpty(msg);
-                return new TransfPkgMsg(target,strToBytes(msg),0,srcT);
+                return new TransfPkgMsg(target,strToBytes(msg),0,srcT,netTimeMs);
             }
-            public static TransfPkgMsg genSpecTargetsMsg(String msg, HashSet<String> targets, int srcT){
+            public static TransfPkgMsg genSpecTargetsMsg(String msg, HashSet<String> targets, int srcT, long netTimeMs){
                 checkEmpty(msg);
-                return new TransfPkgMsg(targets,strToBytes(msg),0, srcT);
+                return new TransfPkgMsg(targets,strToBytes(msg),0, srcT,netTimeMs);
             }
         }
 
@@ -178,14 +197,36 @@ public class Beans {
             return targets;
         }
 
+        private static int packIndexNum = 0;
+        private void initPkg(long netTimeMs){
+            packIndex = packIndexNum++;
+            packGenNetMs = netTimeMs;
+            packGenLocalMs = System.currentTimeMillis();
+            Log.i(TAG, "initPkg: packIndex: "+packIndex+", packGenNetMs: "+packGenNetMs);
+        }
+
+        public void onEncode(){
+            packEncodeNetMs = packGenNetMs + (System.currentTimeMillis() - packGenLocalMs);
+        }
+
+        public void onDecode(){
+            decodeLocalMs = System.currentTimeMillis();
+        }
+
+        public void setNetTimeAfterDecode(long nowNetMs){
+            decodeNetMs = nowNetMs - (System.currentTimeMillis() - decodeLocalMs);
+        }
+
         @Keep
-        private TransfPkgMsg(byte[] data, int originFormat, int srcT) {
+        private TransfPkgMsg(byte[] data, int originFormat, int srcT, long netTimeMs) {
+            initPkg(netTimeMs);
             this.srcType = srcT;
             this.payload = data;
             this.formatType = originFormat;
         }
 
-        private TransfPkgMsg(String target, byte[] data, int originFormat, int srcT) {
+        private TransfPkgMsg(String target, byte[] data, int originFormat, int srcT, long netTimeMs) {
+            initPkg(netTimeMs);
             this.srcType = srcT;
             this.targets = new HashSet<>();
             this.targets.add(target);
@@ -193,7 +234,8 @@ public class Beans {
             this.formatType = originFormat;
         }
 
-        private TransfPkgMsg(HashSet<String> targets, byte[] data, int originFormat, int srcT) {
+        private TransfPkgMsg(HashSet<String> targets, byte[] data, int originFormat, int srcT, long netTimeMs) {
+            initPkg(netTimeMs);
             this.srcType = srcT;
             if(targets != null && targets.size() > 0){
                 this.targets = targets;

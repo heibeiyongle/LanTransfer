@@ -1,5 +1,7 @@
 package com.thunder.common.lib.codec;
 
+import android.util.Log;
+
 import com.thunder.common.lib.dto.Beans;
 import com.thunder.common.lib.util.GsonUtils;
 
@@ -74,19 +76,25 @@ public class ByteBufferCodecImpl implements IByteBufferDealer{
     private Beans.TransfPkgMsg decodePayLoadCmdVer_0(byte[] data ){
         Beans.TransfPkgMsg transfPkgMsg = null;
         try {
+//            Log.i(TAG, "decodePayLoadCmdVer_0 -1 : data.size: "+data.length);
             String tmpStr = new String(Arrays.copyOfRange(data,0,data.length), StandardCharsets.UTF_8.name());
+//            Log.i(TAG, "decodePayLoadCmdVer_0: tmpStr: "+tmpStr);
             transfPkgMsg = GsonUtils.parse(tmpStr, Beans.TransfPkgMsg.class);
+            transfPkgMsg.onDecode();
         } catch (UnsupportedEncodingException e) {
             e.printStackTrace();
         }
         return transfPkgMsg;
     }
 
+    private static final String TAG = "ByteBufferCodecImpl";
     private ByteBuffer encodePayloadCmdVer_0(Beans.TransfPkgMsg msg, ByteBuffer buf){
         byte[] data = null;
         String tmp = GsonUtils.toJson(msg);
+//        Log.i(TAG, "encodePayloadCmdVer_0: tmp: "+tmp);
         try {
             data = tmp.getBytes(StandardCharsets.UTF_8);
+//            Log.i(TAG, "encodePayloadCmdVer_0: data.length: "+data.length);
             buf = packPayload(buf,data,0,Beans.Channel.Command.ordinal());
         }catch (Exception e){
             e.printStackTrace();
@@ -143,6 +151,7 @@ public class ByteBufferCodecImpl implements IByteBufferDealer{
         try {
             Object msg = msgs.poll();
             if(msg instanceof Beans.TransfPkgMsg){
+                ((Beans.TransfPkgMsg) msg).onEncode();
                 writeBuf = encodePayloadCmdVer_0((Beans.TransfPkgMsg) msg,writeBuf);
             }else if( msg instanceof Beans.VideoData){
                 writeBuf = encodePayLoadVideoVer_0((Beans.VideoData) msg,writeBuf);

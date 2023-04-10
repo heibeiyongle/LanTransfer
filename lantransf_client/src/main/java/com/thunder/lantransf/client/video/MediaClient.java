@@ -12,6 +12,7 @@ import com.google.gson.internal.LinkedTreeMap;
 import com.thunder.common.lib.bean.NetTimeInfo;
 import com.thunder.common.lib.dto.Beans;
 import com.thunder.common.lib.util.GsonUtils;
+import com.thunder.lantransf.client.state.ClientStateManager;
 import com.thunder.lantransf.msg.TransfMsgWrapper;
 import com.thunder.lantransf.msg.codec.CodecUtil;
 
@@ -206,7 +207,7 @@ class MediaClient implements IMediaClient{
             Beans.TransfPkgMsg.ResSyncTime tmpMsg = GsonUtils.parseFromLinkedTreeMap(
                     (LinkedTreeMap) msgWrapper.getMsg(), Beans.TransfPkgMsg.ResSyncTime.class);
             dealSyncTimeRes(tmpMsg);
-            mTransfClient.reportClientInfo(mNetTimeInfo.getTransfCostTime());
+            mTransfClient.reportClientInfo(ClientStateManager.getInstance().getNetInfo().getTransfCostTime());
         }else if(Beans.TransfPkgMsg.ResClientInfo.class.getSimpleName().equals(msgType)){
             // save it
             // report client info
@@ -221,8 +222,6 @@ class MediaClient implements IMediaClient{
 
     }
 
-    NetTimeInfo mNetTimeInfo = null;
-
     private void dealSyncTimeRes(Beans.TransfPkgMsg.ResSyncTime res){
         long startTime = res.req.clientTimeMs;
         long endTime = System.currentTimeMillis();
@@ -232,9 +231,10 @@ class MediaClient implements IMediaClient{
         Log.i(TAG, "dealSyncTimeRes (ms) currNetTime: "+currNetTime+" startTime:"+startTime+
                 ", endTime: "+endTime+", transfCost: "+transfCostTime+" netTimeSrc: "+res.serverTimeMs );
 
-        mNetTimeInfo = new NetTimeInfo();
-        mNetTimeInfo.setNetTimeMs(currNetTime);
-        mNetTimeInfo.setTransfCostTime(transfCostTime);
+        NetTimeInfo tmpNetInfo = new NetTimeInfo();
+        tmpNetInfo.setNetTimeMs(currNetTime);
+        tmpNetInfo.setTransfCostTime(transfCostTime);
+        ClientStateManager.getInstance().updateNetInfo(tmpNetInfo);
     }
 
 
@@ -466,10 +466,10 @@ class MediaClient implements IMediaClient{
 
     long mTmpGapLastSec = 0;
     private void checkVideoFrameTime(Beans.VideoData videoData){
-        if(mNetTimeInfo == null){
+        if(ClientStateManager.getInstance().getNetInfo() == null){
             return;
         }
-        long gap = videoData.frameTimeMs - mNetTimeInfo.getCurrNetTimeMs();
+        long gap = videoData.frameTimeMs - ClientStateManager.getInstance().getNetInfo().getCurrNetTimeMs();
         if(gap > mTmpGapMax){
             mTmpGapMax = gap;
         }
@@ -487,7 +487,7 @@ class MediaClient implements IMediaClient{
         if(System.currentTimeMillis()/1000 != mTmpGapLastSec){
             Log.i(TAG, " VIDEO-TRANSF-COST(MS): GAP-avg: "+(1.0f*mTmpGapTotal/mTmpGapCnt)+
                     ", max: "+mTmpGapMax+", min: "+mTmpGapMin+", absMax: "+mTmpAbsGapMax+
-                    ", absMin: "+mTmpAbsGapMin+", net-delay: "+mNetTimeInfo.getTransfCostTime());
+                    ", absMin: "+mTmpAbsGapMin+", net-delay: "+ClientStateManager.getInstance().getNetInfo().getTransfCostTime());
             mTmpGapMax = 0;
             mTmpGapMin = 0;
             mTmpAbsGapMin = Integer.MAX_VALUE;

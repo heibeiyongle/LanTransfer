@@ -133,7 +133,7 @@ public class MsgDealer implements ITransfServer.IClientMsgDealer, IMsgSender,IOu
         if(msg instanceof Beans.TransfPkgMsg)
             throw new RuntimeException(" sendObjectCmd msg should not be CommandMsg.class");
         String tmp = CodecUtil.encodeMsg(msg);
-        Beans.TransfPkgMsg destMsg = Beans.TransfPkgMsg.Builder.genP2PMsg(tmp,target,1);
+        Beans.TransfPkgMsg destMsg = Beans.TransfPkgMsg.Builder.genP2PMsg(tmp,target,1,System.currentTimeMillis());
         sendCmd(destMsg);
     }
 
