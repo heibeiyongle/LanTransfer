@@ -1,0 +1,21 @@
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        google()
+        mavenCentral()
+    }
+}
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+rootProject.name = "LanTransfServer"
+include ':app'
+include ':lantransf_client'
+include ':lantransf_server'
+include ':common_lib'
+include ':msg_codec'
+include ':msg_codec'

@@ -1,0 +1,273 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/white"
+    tools:context=".MainActivity">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="horizontal">
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:paddingLeft="10dp"
+            android:layout_weight="1">
+
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:id="@+id/server_msg_box"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                app:layout_constraintBottom_toTopOf="@+id/cl_box_2"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintVertical_weight="1">
+
+                <TextView
+                    android:id="@+id/v_close"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity=""
+                    android:layout_marginLeft="30dp"
+                    android:layout_marginTop="30dp"
+                    android:background="#f00"
+                    android:padding="5dp"
+                    android:text="   X   "
+                    android:textColor="#fff"
+                    android:textSize="30sp"
+                    app:layout_constraintLeft_toLeftOf="parent"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+                <TextView
+                    android:id="@+id/tv_server_info"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginLeft="20dp"
+                    android:text="serverState"
+                    android:textSize="25sp"
+                    android:textColor="@color/black"
+                    app:layout_constraintLeft_toRightOf="@id/v_close"
+                    app:layout_constraintTop_toTopOf="@id/v_close" />
+
+                <TextView
+                    android:id="@+id/rec_msg_info"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="20dp"
+                    android:text="serverRecMsg"
+                    android:textColor="#f00"
+                    android:textSize="25sp"
+                    app:layout_constraintLeft_toLeftOf="@id/tv_server_info"
+                    app:layout_constraintTop_toBottomOf="@id/tv_server_info" />
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:id="@+id/cl_box_2"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/server_msg_box"
+                app:layout_constraintVertical_weight="1">
+
+                <Button
+                    android:id="@+id/tv_start_server"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="#f00"
+                    android:padding="10dp"
+                    android:text="Start-server"
+                    android:textColor="@color/white"
+                    android:textSize="20sp"
+                    app:layout_constraintLeft_toLeftOf="parent"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+                <Button
+                    android:id="@+id/tv_start_publish_video"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center_horizontal"
+                    android:layout_marginLeft="30dp"
+                    android:background="#f00"
+                    android:padding="10dp"
+                    android:text="publish_video"
+                    android:textColor="@color/white"
+                    android:textSize="20sp"
+                    app:layout_constraintLeft_toRightOf="@id/tv_start_server"
+                    app:layout_constraintTop_toTopOf="@+id/tv_start_server" />
+
+                <Button
+                    android:id="@+id/tv_send_msg_play_state"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="30dp"
+                    android:background="#f00"
+                    android:padding="10dp"
+                    android:text="Send_msg_play_state"
+                    android:textColor="@color/white"
+                    android:textSize="20sp"
+                    app:layout_constraintLeft_toLeftOf="parent"
+                    app:layout_constraintTop_toBottomOf="@id/tv_start_server" />
+
+
+                <Button
+                    android:id="@+id/tv_stop_server"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center_horizontal"
+                    android:layout_marginLeft="30dp"
+                    android:background="#f00"
+                    android:padding="10dp"
+                    android:text="stop_server"
+                    android:textColor="@color/white"
+                    android:textSize="20sp"
+                    app:layout_constraintLeft_toRightOf="@+id/tv_send_msg_play_state"
+                    app:layout_constraintTop_toTopOf="@id/tv_send_msg_play_state" />
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <View
+            android:id="@+id/v_devide_line"
+            android:background="@color/black"
+            android:layout_width="10dp"
+            android:layout_height="match_parent"/>
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/sv_box"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:padding="10dp">
+
+            <SurfaceView
+                android:id="@+id/sv_client"
+                android:layout_width="1dp"
+                android:layout_height="1dp"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintLeft_toLeftOf="parent"
+                app:layout_constraintRight_toRightOf="parent"
+                android:background="#88ffff00"
+                android:visibility="invisible" />
+
+            <TextView
+                android:id="@+id/tv_client_info"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:layout_marginLeft="30dp"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintLeft_toLeftOf="parent"
+                android:text="ClientInfo:"
+                android:textColor="@color/black"
+                android:textSize="30dp" />
+
+            <TextView
+                android:id="@+id/client_rec_msg_info"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:layout_marginLeft="30dp"
+                android:text="client_rec_msg:"
+                android:textColor="#f00"
+                android:textSize="30sp"
+                app:layout_constraintLeft_toLeftOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/tv_client_info" />
+
+            <androidx.constraintlayout.widget.ConstraintLayout
+                    android:id="@+id/client_btn_box"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    android:layout_marginBottom="100dp"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <Button
+                        android:id="@+id/tv_client_start"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:background="#f00"
+                        android:padding="5dp"
+                        android:text="start-client"
+                        android:textColor="@color/white"
+                        android:textSize="20sp"
+                        app:layout_constraintLeft_toLeftOf="parent"
+                        app:layout_constraintTop_toTopOf="parent" />
+
+                    <Button
+                        android:id="@+id/tv_client_stop"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        app:layout_constraintTop_toTopOf="@id/tv_client_start"
+                        app:layout_constraintLeft_toRightOf="@id/tv_client_start"
+                        android:layout_marginLeft="30dp"
+                        android:background="#f00"
+                        android:padding="5dp"
+                        android:text="stop-client"
+                        android:textColor="@color/white"
+                        android:textSize="20sp" />
+
+                    <Button
+                        android:id="@+id/tv_client_show"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        app:layout_constraintTop_toBottomOf="@id/tv_client_start"
+                        app:layout_constraintLeft_toLeftOf="parent"
+                        android:layout_marginTop="30dp"
+                        android:background="#f00"
+                        android:padding="5dp"
+                        android:text="Show"
+                        android:textColor="@color/white"
+                        android:textSize="20sp" />
+
+                    <Button
+                        android:id="@+id/tv_client_hidden"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        app:layout_constraintTop_toTopOf="@id/tv_client_show"
+                        app:layout_constraintLeft_toRightOf="@id/tv_client_show"
+                        android:layout_marginLeft="30dp"
+                        android:background="#f00"
+                        android:padding="5dp"
+                        android:text="Hide"
+                        android:textColor="@color/white"
+                        android:textSize="20sp" />
+
+                    <Button
+                        android:id="@+id/tv_client_btnckl"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="30dp"
+                        app:layout_constraintTop_toBottomOf="@id/tv_client_show"
+                        app:layout_constraintLeft_toLeftOf="parent"
+                        android:background="#f00"
+                        android:padding="10dp"
+                        android:text="btn-clk"
+                        android:textColor="@color/white"
+                        android:textSize="20sp" />
+
+                    <Button
+                        android:id="@+id/tv_client_get_state"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginLeft="30dp"
+                        app:layout_constraintTop_toTopOf="@id/tv_client_btnckl"
+                        app:layout_constraintLeft_toRightOf="@id/tv_client_btnckl"
+                        android:background="#f00"
+                        android:padding="10dp"
+                        android:text="get-server-state"
+                        android:textColor="@color/white"
+                        android:textSize="20sp" />
+
+                </androidx.constraintlayout.widget.ConstraintLayout>
+
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+    </LinearLayout>
+</LinearLayout>
